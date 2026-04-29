@@ -3,29 +3,25 @@ import pandas as pd
 import numpy as np
 from datetime import datetime
 
-# 🎨 STYLIZACJA CSS: Tooltips bezpośrednio na nagłówkach tabel + wyrównanie
+# 🎨 STYLIZACJA CSS + JavaScript dla tooltipów na nagłówkach tabel
 st.markdown("""
 <style>
-/* Tooltips na nagłówkach tabel - działa na wyrenderowanej tabeli */
-.stDataFrame table th,
-[data-testid="stTable"] table th {
+/* Tooltip container na nagłówkach */
+.th-tooltip {
     position: relative;
     cursor: help;
-    color: #f8fafc !important;
+    border-bottom: 1px dotted #3b82f6;
 }
 
-.stDataFrame table th:hover,
-[data-testid="stTable"] table th:hover {
+.th-tooltip:hover {
     color: #3b82f6 !important;
 }
 
-/* Tooltip text - pojawia się przy najechaniu na nagłówek */
-.stDataFrame table th::after,
-[data-testid="stTable"] table th::after {
-    content: attr(data-tooltip);
+/* Tooltip text */
+.th-tooltip .tooltip-content {
     visibility: hidden;
     opacity: 0;
-    width: 240px;
+    width: 220px;
     background: #1e293b;
     color: #f8fafc;
     text-align: left;
@@ -33,7 +29,7 @@ st.markdown("""
     padding: 8px 10px;
     position: absolute;
     z-index: 1000;
-    bottom: 100%;
+    bottom: 125%;
     left: 50%;
     transform: translateX(-50%);
     font-size: 11px;
@@ -41,17 +37,26 @@ st.markdown("""
     box-shadow: 0 4px 12px rgba(0,0,0,0.4);
     transition: all 0.2s ease;
     pointer-events: none;
-    white-space: normal;
     border: 1px solid #334155;
 }
 
-.stDataFrame table th:hover::after,
-[data-testid="stTable"] table th:hover::after {
+.th-tooltip:hover .tooltip-content {
     visibility: visible;
     opacity: 1;
 }
 
-/* Wyrównanie tabeli: środek dla wszystkich kolumn poza pierwszą */
+.th-tooltip .tooltip-content::after {
+    content: "";
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    margin-left: -5px;
+    border-width: 5px;
+    border-style: solid;
+    border-color: #1e293b transparent transparent transparent;
+}
+
+/* Wyrównanie tabeli */
 .stDataFrame table th:not(:first-child), 
 .stDataFrame table td:not(:first-child),
 [data-testid="stTable"] th:not(:first-child),
@@ -65,7 +70,7 @@ st.markdown("""
     text-align: left !important; 
 }
 
-/* Styl dla sidebar hint */
+/* Sidebar hint */
 .sidebar-hint {
     background: #1e293b;
     color: #f8fafc;
@@ -80,7 +85,7 @@ st.markdown("""
     color: #3b82f6;
 }
 
-/* Styl dla etykiet trybu */
+/* Mode badge */
 .mode-badge {
     padding: 4px 12px;
     border-radius: 20px;
@@ -89,20 +94,60 @@ st.markdown("""
     display: inline-block;
     margin-bottom: 10px;
 }
-.mode-daily {
-    background: #ef4444;
-    color: white;
-}
-.mode-monthly {
-    background: #10b981;
-    color: white;
-}
+.mode-daily { background: #ef4444; color: white; }
+.mode-monthly { background: #10b981; color: white; }
 
-/* Paper Trading - wyrównanie kolumn */
-.pt-column {
-    padding: 8px 4px;
-}
+/* Paper Trading columns */
+.pt-col { padding: 8px 4px; }
 </style>
+
+<script>
+// JavaScript do dodania tooltipów po załadowaniu strony
+document.addEventListener('DOMContentLoaded', function() {
+    addTooltips();
+});
+
+// Obserwuj zmiany w DOM (Streamlit dynamicznie renderuje)
+const observer = new MutationObserver(function() {
+    addTooltips();
+});
+observer.observe(document.body, { childList: true, subtree: true });
+
+function addTooltips() {
+    const tooltips = {
+        'Ticker': 'Symbol giełdowy spółki',
+        'Price': 'Aktualna cena rynkowa akcji',
+        'Target Price': 'Średnia cena docelowa analityków',
+        'Upside %': 'Potencjał wzrostu (%) = (Target - Price) / Price × 100',
+        'Market Cap': 'Kapitalizacja rynkowa spółki',
+        'Dividend Yield': 'Stopa dywidendy (%) = Dywidenda / Cena × 100',
+        'PE Ratio': 'Cena/Zysk. <15 = tanio, >25 = drogo',
+        'PEG Ratio': 'PE/Wzrost. <1 = niedowyceniony',
+        'Quick Ratio (Q)': 'Płynność szybka. >1 = OK',
+        'Debt/Assets (Q)': 'Zadłużenie/Aktywa. <0.5 = bezpiecznie',
+        'Signal Score': 'Wynik AI (0-1). BUY≥0.6',
+        'Signal': 'Sygnał: 🟢BUY 🟡HOLD 🔴SELL',
+        'Cena': 'Cena pojedynczej akcji',
+        '% Model': 'Procent alokacji wg modelu AI',
+        'Ilość (ułamkowa)': 'Sugerowana ilość z modelu',
+        'Faktyczny portfel': 'Realna ilość do brokera',
+        'Wartość Realna': 'Rzeczywista wartość pozycji'
+    };
+    
+    document.querySelectorAll('.stDataFrame table th, [data-testid="stTable"] table th').forEach(function(th) {
+        if (!th.classList.contains('th-tooltip')) {
+            const text = th.textContent.trim();
+            if (tooltips[text]) {
+                th.classList.add('th-tooltip');
+                const tooltip = document.createElement('span');
+                tooltip.className = 'tooltip-content';
+                tooltip.textContent = tooltips[text];
+                th.appendChild(tooltip);
+            }
+        }
+    });
+}
+</script>
 """, unsafe_allow_html=True)
 
 # 📖 LEGENDA WSKAŹNIKÓW
@@ -255,8 +300,6 @@ with tab1:
         "Market Cap": lambda x: format_currency(x, st.session_state.currency), 
         "Signal Score": "{:.2f}"
     }), use_container_width=True, hide_index=True)
-    
-    st.caption("💡 Najedź na nagłówek kolumny, aby zobaczyć opis wskaźnika")
 
 # TAB 2: SKANER
 with tab2:
@@ -290,8 +333,6 @@ with tab2:
             "Market Cap": lambda x: format_currency(x, st.session_state.currency), 
             "Signal Score": "{:.2f}"
         }), use_container_width=True, hide_index=True)
-        
-        st.caption("💡 Najedź na nagłówek kolumny, aby zobaczyć opis wskaźnika")
 
 # TAB 3: SYGNAŁY
 with tab3:
@@ -308,8 +349,6 @@ with tab3:
         "Market Cap": lambda x: format_currency(x, st.session_state.currency), 
         "Signal Score": "{:.2f}"
     }), use_container_width=True, hide_index=True)
-    
-    st.caption("💡 Najedź na nagłówek kolumny, aby zobaczyć opis wskaźnika")
 
 # TAB 4: PAPER TRADING
 with tab4:
@@ -332,14 +371,13 @@ with tab4:
             df_tickers = df_all[df_all["Ticker"].isin(tickers_list)]
             
             for idx, row in df_tickers.iterrows():
-                # ✅ Wyrównane kolumny z key dla każdego inputa
                 cA, cB, cC, cD, cE = st.columns([2, 2, 2, 2, 2])
                 
                 with cA:
-                    st.markdown(f"<div class='pt-column'><b>{row['Ticker']}</b></div>", unsafe_allow_html=True)
+                    st.markdown(f"<div class='pt-col'><b>{row['Ticker']}</b></div>", unsafe_allow_html=True)
                     
                 with cB:
-                    st.markdown(f"<div class='pt-column' style='text-align:center;'>{row['Price']:,.2f}<br><small>{st.session_state.currency}</small></div>", unsafe_allow_html=True)
+                    st.markdown(f"<div class='pt-col' style='text-align:center;'>{row['Price']:,.2f}<br><small>{st.session_state.currency}</small></div>", unsafe_allow_html=True)
                     
                 with cC:
                     if alloc_method == "Wg wartości (%)":
@@ -350,10 +388,9 @@ with tab4:
                         model_qty = st.number_input("Model szt.", 0.0, 10000.0, 10.0, step=0.5, key=f"qty_{idx}_{row['Ticker']}")
                         model_value = model_qty * row["Price"]
                         pct = (model_value / st.session_state.paper_capital) * 100
-                    st.markdown(f"<div class='pt-column' style='text-align:center;'>{model_qty:.2f}<br><small>szt.</small></div>", unsafe_allow_html=True)
+                    st.markdown(f"<div class='pt-col' style='text-align:center;'>{model_qty:.2f}<br><small>szt.</small></div>", unsafe_allow_html=True)
                     
                 with cD:
-                    # ✅ step=0.01 dla ułamkowych części akcji
                     real_qty = st.number_input(
                         "Faktyczny", 
                         0.0, 
@@ -363,10 +400,10 @@ with tab4:
                         key=f"real_{idx}_{row['Ticker']}"
                     )
                     real_value = real_qty * row["Price"]
-                    st.markdown(f"<div class='pt-column' style='text-align:center;'>{real_qty:.2f}<br><small>szt.</small></div>", unsafe_allow_html=True)
+                    st.markdown(f"<div class='pt-col' style='text-align:center;'>{real_qty:.2f}<br><small>szt.</small></div>", unsafe_allow_html=True)
                     
                 with cE:
-                    st.markdown(f"<div class='pt-column' style='text-align:center;'>{real_value:,.0f}<br><small>{st.session_state.currency}</small></div>", unsafe_allow_html=True)
+                    st.markdown(f"<div class='pt-col' style='text-align:center;'>{real_value:,.0f}<br><small>{st.session_state.currency}</small></div>", unsafe_allow_html=True)
                 
                 alloc_data.append({
                     "Ticker": row["Ticker"], 
@@ -383,7 +420,6 @@ with tab4:
             
             st.divider()
             
-            # ✅ Tabela z wyrównanymi kolumnami
             display_cols = ["Ticker", "Cena", "% Model", "Ilość (ułamkowa)", "Faktyczny portfel", "Wartość Realna"]
             
             st.dataframe(
