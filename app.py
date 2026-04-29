@@ -3,50 +3,29 @@ import pandas as pd
 import numpy as np
 from datetime import datetime
 
-# 🎨 STYLIZACJA CSS + JavaScript dla tooltipów
+# 🎨 STYLIZACJA CSS - Jasny motyw (pastelowe szarości i niebieski)
 st.markdown("""
 <style>
+/* Główny motyw - jasny */
+.stApp {
+    background: #f8fafc;
+}
+
 /* Tooltip na nagłówkach tabel */
 [data-testid="stDataFrame"] table th,
 [data-testid="stTable"] table th {
-    position: relative;
+    background: #e2e8f0 !important;
+    color: #1e3a5f !important;
+    font-weight: 600 !important;
+    border-bottom: 2px solid #3b82f6 !important;
     cursor: help;
-    color: #f8fafc !important;
-    border-bottom: 1px dotted #3b82f6 !important;
 }
 
-[data-testid="stDataFrame"] table th:hover,
-[data-testid="stTable"] table th:hover {
-    color: #3b82f6 !important;
-}
-
-/* Tooltip content */
-.th-tooltip-box {
-    visibility: hidden;
-    opacity: 0;
-    width: 200px;
-    background: #0f172a;
-    color: #f8fafc;
-    text-align: center;
-    border-radius: 6px;
-    padding: 6px 10px;
-    position: absolute;
-    z-index: 1000;
-    bottom: 100%;
-    left: 50%;
-    transform: translateX(-50%);
-    font-size: 11px;
-    line-height: 1.3;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-    transition: all 0.2s ease;
-    pointer-events: none;
-    border: 1px solid #334155;
-}
-
-[data-testid="stDataFrame"] table th:hover .th-tooltip-box,
-[data-testid="stTable"] table th:hover .th-tooltip-box {
-    visibility: visible;
-    opacity: 1;
+[data-testid="stDataFrame"] table td,
+[data-testid="stTable"] table td {
+    background: #ffffff !important;
+    color: #1e293b !important;
+    border-bottom: 1px solid #e2e8f0 !important;
 }
 
 /* Wyrównanie tabeli */
@@ -63,17 +42,35 @@ st.markdown("""
     text-align: left !important; 
 }
 
-/* Paper Trading - wyrównany layout */
+/* Paper Trading - czytelny layout */
+.pt-container {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 0;
+    margin: 10px 0;
+}
+.pt-header {
+    background: #f1f5f9;
+    padding: 12px 8px;
+    border-radius: 8px 8px 0 0;
+    font-weight: 600;
+    color: #1e3a5f;
+    border-bottom: 2px solid #3b82f6;
+}
 .pt-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 12px 8px;
-    border-bottom: 1px solid #334155;
+    padding: 10px 8px;
+    border-bottom: 1px solid #e2e8f0;
     gap: 8px;
 }
 .pt-row:last-child {
     border-bottom: none;
+}
+.pt-row:hover {
+    background: #f8fafc;
 }
 .pt-col {
     flex: 1;
@@ -83,104 +80,103 @@ st.markdown("""
 .pt-col:first-child {
     text-align: left;
     flex: 1.5;
+    font-weight: 600;
+    color: #1e3a5f;
 }
 .pt-label {
-    font-size: 11px;
-    color: #94a3b8;
-    margin-bottom: 4px;
+    font-size: 10px;
+    color: #64748b;
+    margin-top: 2px;
 }
 .pt-value {
     font-size: 13px;
-    color: #f8fafc;
+    color: #1e293b;
+    font-weight: 500;
+}
+.pt-value.highlight {
+    color: #3b82f6;
     font-weight: 600;
 }
-.pt-input {
-    width: 100%;
+
+/* Metric boxes - pastelowe */
+[data-testid="stMetric"] {
+    background: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 8px !important;
+    padding: 12px !important;
+}
+[data-testid="stMetricLabel"] {
+    color: #64748b !important;
+}
+[data-testid="stMetricValue"] {
+    color: #1e3a5f !important;
+}
+[data-testid="stMetricDelta"] {
+    color: #10b981 !important;
 }
 
-/* Sidebar hint */
-.sidebar-hint {
-    background: #1e293b;
-    color: #f8fafc;
-    border-radius: 8px;
-    padding: 12px;
-    margin-top: 10px;
-    border-left: 4px solid #3b82f6;
-}
-.sidebar-hint-title {
-    font-weight: bold;
-    margin-bottom: 8px;
-    color: #3b82f6;
+/* Sidebar */
+[data-testid="stSidebar"] {
+    background: #f1f5f9 !important;
 }
 
-/* Mode badge */
-.mode-badge {
+/* Buttons */
+.stButton > button {
+    background: #3b82f6 !important;
+    color: white !important;
+    border: none !important;
+    border-radius: 6px !important;
+}
+.stButton > button:hover {
+    background: #2563eb !important;
+}
+
+/* Tabs */
+.stTabs [data-baseweb="tab-list"] {
+    background: #f1f5f9;
+    border-radius: 8px 8px 0 0;
+}
+.stTabs [data-baseweb="tab"] {
+    background: #e2e8f0;
+    color: #64748b;
+    border-radius: 6px 6px 0 0;
+}
+.stTabs [aria-selected="true"] {
+    background: #ffffff !important;
+    color: #3b82f6 !important;
+    font-weight: 600;
+}
+
+/* Exchange selector */
+.exchange-badge {
+    display: inline-block;
     padding: 4px 12px;
     border-radius: 20px;
-    font-size: 12px;
-    font-weight: bold;
-    display: inline-block;
-    margin-bottom: 10px;
+    font-size: 11px;
+    font-weight: 600;
+    margin: 2px;
 }
-.mode-daily { background: #ef4444; color: white; }
-.mode-monthly { background: #10b981; color: white; }
+.exchange-wig20 { background: #dbeafe; color: #1e40af; }
+.exchange-wig40 { background: #dcfce7; color: #166534; }
+.exchange-wig80 { background: #fef3c7; color: #92400e; }
+.exchange-ibkr { background: #e0e7ff; color: #4338ca; }
 </style>
-
-<script>
-// JavaScript do dodania tooltipów
-function addTableTooltips() {
-    const tooltips = {
-        'Ticker': 'Symbol giełdowy spółki',
-        'Price': 'Aktualna cena rynkowa akcji',
-        'Target Price': 'Średnia cena docelowa analityków',
-        'Upside %': 'Potencjał wzrostu (%)',
-        'Market Cap': 'Kapitalizacja rynkowa',
-        'Dividend Yield': 'Stopa dywidendy (%)',
-        'PE Ratio': 'Cena/Zysk (<15 = tanio)',
-        'PEG Ratio': 'PE/Wzrost (<1 = niedowyceniony)',
-        'Quick Ratio (Q)': 'Płynność szybka (>1 = OK)',
-        'Debt/Assets (Q)': 'Zadłużenie/Aktywa (<0.5 = bezpiecznie)',
-        'Signal Score': 'Wynik AI (0-1). BUY≥0.6',
-        'Signal': 'Sygnał: BUY/HOLD/SELL',
-        'Cena': 'Cena pojedynczej akcji',
-        '% Model': 'Procent alokacji wg modelu AI',
-        'Ilość (ułamkowa)': 'Sugerowana ilość z modelu',
-        'Faktyczny portfel': 'Realna ilość do brokera',
-        'Wartość Realna': 'Rzeczywista wartość pozycji'
-    };
-    
-    document.querySelectorAll('[data-testid="stDataFrame"] table th, [data-testid="stTable"] table th').forEach(function(th) {
-        const text = th.textContent.trim().split('\\n')[0];
-        if (tooltips[text] && !th.querySelector('.th-tooltip-box')) {
-            const tooltip = document.createElement('span');
-            tooltip.className = 'th-tooltip-box';
-            tooltip.textContent = tooltips[text];
-            th.appendChild(tooltip);
-        }
-    });
-}
-
-// Uruchom po załadowaniu i przy zmianach
-document.addEventListener('DOMContentLoaded', addTableTooltips);
-setTimeout(addTableTooltips, 500);
-setTimeout(addTableTooltips, 1500);
-</script>
 """, unsafe_allow_html=True)
 
-# 📖 LEGENDA WSKAŹNIKÓW
-INDICATOR_DESC = {
+# 📖 LEGENDA WSKAŹNIKÓW - używamy help parametru Streamlit
+INDICATOR_HELP = {
     "Ticker": "Symbol giełdowy spółki",
     "Price": "Aktualna cena rynkowa akcji",
     "Target Price": "Średnia cena docelowa analityków",
-    "Upside %": "Potencjał wzrostu (%)",
-    "Market Cap": "Kapitalizacja rynkowa",
-    "Dividend Yield": "Stopa dywidendy (%)",
-    "PE Ratio": "Cena/Zysk (<15 = tanio)",
-    "PEG Ratio": "PE/Wzrost (<1 = niedowyceniony)",
-    "Quick Ratio (Q)": "Płynność szybka (>1 = OK)",
-    "Debt/Assets (Q)": "Zadłużenie/Aktywa (<0.5 = bezpiecznie)",
-    "Signal Score": "Wynik AI (0-1)",
-    "Signal": "Sygnał: BUY/HOLD/SELL",
+    "Upside %": "Potencjał wzrostu (%) = (Target - Price) / Price × 100",
+    "Market Cap": "Kapitalizacja rynkowa spółki",
+    "Dividend Yield": "Stopa dywidendy (%) = Dywidenda / Cena × 100",
+    "PE Ratio": "Cena/Zysk. <15 = tanio, >25 = drogo",
+    "PEG Ratio": "PE/Wzrost. <1 = niedowyceniony",
+    "Quick Ratio (Q)": "Płynność szybka. >1 = zdolność do spłaty zobowiązań",
+    "Debt/Assets (Q)": "Zadłużenie/Aktywa. <0.5 = bezpieczny poziom",
+    "Signal Score": "Wynik AI (0-1). BUY≥0.6, HOLD 0.3-0.6, SELL≤0.3",
+    "Signal": "Sygnał: 🟢BUY 🟡HOLD 🔴SELL",
     "Cena": "Cena pojedynczej akcji",
     "% Model": "Procent alokacji wg modelu AI",
     "Ilość (ułamkowa)": "Sugerowana ilość akcji z modelu",
@@ -193,12 +189,22 @@ def format_currency(val, curr="PLN"):
         return "-"
     return f"{val:,.0f} {curr}"
 
+# 📊 DANE DLA RÓŻNYCH INDEKSÓW
+INDEX_TICKERS = {
+    "WIG20": ["PKO.WAR", "PEO.WAR", "PZU.WAR", "KGH.WAR", "LTS.WAR", "CDR.WAR", "DNP.WAR", "ALR.WAR", "JSW.WAR", "MBK.WAR"],
+    "WIG40": ["PKO.WAR", "PEO.WAR", "PZU.WAR", "KGH.WAR", "LTS.WAR", "CDR.WAR", "DNP.WAR", "ALR.WAR", "JSW.WAR", "MBK.WAR", "PLW.WAR", "CCC.WAR", "CNT.WAR", "EUZ.WAR", "KRU.WAR"],
+    "WIG80": ["PKO.WAR", "PEO.WAR", "PZU.WAR", "KGH.WAR", "LTS.WAR", "CDR.WAR", "DNP.WAR", "ALR.WAR", "JSW.WAR", "MBK.WAR", "PLW.WAR", "CCC.WAR", "CNT.WAR", "EUZ.WAR", "KRU.WAR", "ATA.WAR", "BDS.WAR", "BHW.WAR", "BIO.WAR", "BLO.WAR"],
+    "IBKR": ["AAPL", "MSFT", "GOOGL", "AMZN", "TSLA", "NVDA", "META", "JPM", "V", "JNJ"]
+}
+
 @st.cache_data(ttl=3600)
-def generate_mock_data(trade_mode="daily"):
-    tickers = ["PKO.WAR", "PEO.WAR", "PZU.WAR", "KGH.WAR", "LTS.WAR", "CDR.WAR", "DNP.WAR", "ALR.WAR", "JSW.WAR", "MBK.WAR"]
+def generate_mock_data(tickers, trade_mode="daily"):
     data = []
     for t in tickers:
-        price = np.round(np.random.uniform(40, 350), 2)
+        if t in INDEX_TICKERS["IBKR"]:
+            price = np.round(np.random.uniform(100, 500), 2)
+        else:
+            price = np.round(np.random.uniform(40, 350), 2)
         target = price * np.round(np.random.uniform(0.85, 1.35), 2)
         
         if trade_mode == "daily":
@@ -253,43 +259,75 @@ if "currency" not in st.session_state:
     st.session_state.currency = "PLN"
 if "trade_mode" not in st.session_state:
     st.session_state.trade_mode = "daily"
+if "exchange" not in st.session_state:
+    st.session_state.exchange = "WIG20"
 
 # 🖥️ UI
 st.set_page_config(page_title="🤖 AI Giełda Agent", layout="wide", page_icon="📈")
-st.title("🤖 AI Giełda Agent")
-st.markdown("*Paper Trading | GPW & IBKR | Rebalans | Sygnały BUY/HOLD/SELL*")
+
+# Header
+st.markdown("<h1 style='color: #1e3a5f; font-size: 28px;'>🤖 AI Giełda Agent</h1>", unsafe_allow_html=True)
+st.markdown("<p style='color: #64748b; font-size: 14px;'>Paper Trading | GPW & IBKR | Rebalans | Sygnały BUY/HOLD/SELL</p>", unsafe_allow_html=True)
 
 # SIDEBAR
 with st.sidebar:
-    st.header("⚙️ Konfiguracja")
+    st.markdown("<h3 style='color: #1e3a5f;'>⚙️ Konfiguracja</h3>", unsafe_allow_html=True)
     
-    trade_mode = st.radio("🎯 Strategia Agenta", ["Daily Trade", "Monthly Trade"], 
-                         index=0 if st.session_state.trade_mode == "daily" else 1)
+    # ✅ WYBÓR GIEŁDY
+    st.markdown("<p style='color: #64748b; font-size: 12px; font-weight: 600;'>📍 Giełda / Indeks</p>", unsafe_allow_html=True)
+    exchange = st.selectbox(
+        "Wybierz indeks",
+        ["WIG20", "WIG40", "WIG80", "IBKR"],
+        index=["WIG20", "WIG40", "WIG80", "IBKR"].index(st.session_state.exchange) if st.session_state.exchange in ["WIG20", "WIG40", "WIG80", "IBKR"] else 0,
+        label_visibility="collapsed"
+    )
+    st.session_state.exchange = exchange
+    
+    # Badge giełdy
+    badge_class = f"exchange-{exchange.lower()}"
+    st.markdown(f'<span class="exchange-badge {badge_class}">📊 {exchange}</span>', unsafe_allow_html=True)
+    
+    st.divider()
+    
+    # Tryb tradingu
+    st.markdown("<p style='color: #64748b; font-size: 12px; font-weight: 600;'>🎯 Strategia</p>", unsafe_allow_html=True)
+    trade_mode = st.radio(
+        "Tryb",
+        ["Daily Trade", "Monthly Trade"],
+        index=0 if st.session_state.trade_mode == "daily" else 1,
+        label_visibility="collapsed"
+    )
     st.session_state.trade_mode = "daily" if trade_mode == "Daily Trade" else "monthly"
     
-    badge_class = "mode-daily" if st.session_state.trade_mode == "daily" else "mode-monthly"
     badge_text = "Day Trade" if st.session_state.trade_mode == "daily" else "Swing/Monthly"
-    st.markdown(f'<span class="mode-badge {badge_class}">🔴 {badge_text}</span>', unsafe_allow_html=True)
+    badge_color = "#ef4444" if st.session_state.trade_mode == "daily" else "#10b981"
+    st.markdown(f'<span style="background: {badge_color}; color: white; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 600;">🔴 {badge_text}</span>', unsafe_allow_html=True)
     
-    curr = st.selectbox("💱 Waluta raportowania", ["PLN", "USD"], index=0)
+    st.divider()
+    
+    # Waluta
+    curr = st.selectbox("💱 Waluta", ["PLN", "USD"], index=0)
     st.session_state.currency = curr
     
+    # Kapitał
     capital = st.number_input("💰 Kapitał startowy", min_value=1000.0, value=100000.0, step=5000.0)
     st.session_state.paper_capital = capital
     
     st.divider()
     
-    mode_hint = "Szybkie momentum, analiza sentymentu" if st.session_state.trade_mode == "daily" else "Wartość, dywidendy, stabilność"
+    # Info
+    mode_hint = "Szybkie momentum, sentyment" if st.session_state.trade_mode == "daily" else "Wartość, dywidendy"
     st.markdown(f"""
-    <div class="sidebar-hint">
-        <div class="sidebar-hint-title">📖 Strategia: {badge_text}</div>
-        <div>{mode_hint}</div>
-        <div style="margin-top:6px;font-size:11px;color:#94a3b8;">PE&lt;15 | DY&gt;3% | Quick&gt;1 | Upside&gt;10%</div>
+    <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; margin-top: 10px;">
+        <p style="color: #3b82f6; font-weight: 600; margin-bottom: 8px; font-size: 12px;">📖 Strategia: {badge_text}</p>
+        <p style="color: #64748b; font-size: 11px; margin: 4px 0;">{mode_hint}</p>
+        <p style="color: #64748b; font-size: 11px; margin: 4px 0;">PE&lt;15 | DY&gt;3% | Quick&gt;1</p>
     </div>
     """, unsafe_allow_html=True)
 
-# Generuj dane
-df_all = generate_mock_data(st.session_state.trade_mode)
+# Generuj dane dla wybranego indeksu
+tickers = INDEX_TICKERS[st.session_state.exchange]
+df_all = generate_mock_data(tickers, st.session_state.trade_mode)
 cols_display = ["Ticker", "Price", "Target Price", "Upside %", "Market Cap", "Dividend Yield", 
                 "PE Ratio", "PEG Ratio", "Quick Ratio (Q)", "Debt/Assets (Q)", "Signal", "Signal Score"]
 
@@ -299,7 +337,7 @@ tab1, tab2, tab3, tab4 = st.tabs(["📊 Dashboard", "🔍 Skaner", "📈 Sygnał
 # TAB 1: DASHBOARD
 with tab1:
     mode_label = "Day Trade" if st.session_state.trade_mode == "daily" else "Swing/Monthly"
-    st.subheader(f"📊 Dashboard — {mode_label}")
+    st.markdown(f"<h3 style='color: #1e3a5f;'>📊 Dashboard — {mode_label} | {st.session_state.exchange}</h3>", unsafe_allow_html=True)
     
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("📈 Aktywa w portfelu", "20/30")
@@ -307,7 +345,7 @@ with tab1:
     c3.metric("📊 Śr. Upside", f"{df_all['Upside %'].mean():.1f}%")
     c4.metric("🔄 Ostatni rebalans", datetime.now().strftime("%Y-%m-%d"))
     
-    st.subheader("🔥 Top Movers")
+    st.markdown("<h4 style='color: #1e3a5f; margin-top: 24px;'>🔥 Top Movers</h4>", unsafe_allow_html=True)
     movers = df_all.sort_values("Upside %", ascending=False).head(5)
     
     st.dataframe(movers[cols_display].style.format({
@@ -320,7 +358,7 @@ with tab1:
 
 # TAB 2: SKANER
 with tab2:
-    st.subheader("🔍 Zaawansowany Skaner")
+    st.markdown("<h3 style='color: #1e3a5f;'>🔍 Zaawansowany Skaner</h3>", unsafe_allow_html=True)
     colA, colB, colC = st.columns(3)
     with colA:
         pe_max = st.number_input("Max P/E", 5, 50, 25)
@@ -354,7 +392,7 @@ with tab2:
 # TAB 3: SYGNAŁY
 with tab3:
     mode_label = "Day Trade" if st.session_state.trade_mode == "daily" else "Swing/Monthly"
-    st.subheader(f"🎯 Lista Sygnałów — {mode_label}")
+    st.markdown(f"<h3 style='color: #1e3a5f;'>🎯 Lista Sygnałów — {mode_label}</h3>", unsafe_allow_html=True)
     
     sig_filter = st.radio("Filtr sygnałów", ["Wszystkie", "🟢 BUY", "🟡 HOLD", "🔴 SELL"], horizontal=True)
     df_sig = df_all[df_all["Signal"] == sig_filter] if sig_filter != "Wszystkie" else df_all
@@ -366,31 +404,35 @@ with tab3:
         "Market Cap": lambda x: format_currency(x, st.session_state.currency), 
         "Signal Score": "{:.2f}"
     }), use_container_width=True, hide_index=True)
+    
+    st.caption("💡 Najedź na nagłówek kolumny, aby zobaczyć opis wskaźnika")
 
-# TAB 4: PAPER TRADING - POPRAWIONY LAYOUT
+# TAB 4: PAPER TRADING - CZYTELNY LAYOUT
 with tab4:
     mode_label = "Day Trade" if st.session_state.trade_mode == "daily" else "Swing/Monthly"
-    st.subheader(f"💼 Panel Paper Trading — {mode_label}")
+    st.markdown(f"<h3 style='color: #1e3a5f;'>💼 Panel Paper Trading — {mode_label} | {st.session_state.exchange}</h3>", unsafe_allow_html=True)
     
     col_left, col_right = st.columns([1, 2])
     
     with col_left:
-        st.metric("💰 Dostępny Kapitał", format_currency(st.session_state.paper_capital, st.session_state.currency))
+        st.markdown(f"<p style='color: #64748b; font-size: 12px;'>💰 Dostępny Kapitał</p>", unsafe_allow_html=True)
+        st.markdown(f"<h2 style='color: #1e3a5f; margin: 8px 0;'>{format_currency(st.session_state.paper_capital, st.session_state.currency)}</h2>", unsafe_allow_html=True)
+        
         alloc_method = st.radio("Metoda alokacji", ["Wg wartości (%)", "Wg ilości akcji"])
         tickers_list = st.multiselect("Wybór walorów", df_all["Ticker"].tolist(), default=df_all["Ticker"].tolist()[:5])
         
     with col_right:
-        st.markdown("📝 Konfiguracja pozycji")
+        st.markdown("<p style='color: #64748b; font-size: 12px;'>📝 Konfiguracja pozycji</p>", unsafe_allow_html=True)
         st.caption("💡 Ułamkowe części akcji dozwolone (2 miejsca po przecinku)")
         
         if tickers_list:
             alloc_data = []
             df_tickers = df_all[df_all["Ticker"].isin(tickers_list)]
             
-            # ✅ NAGŁÓWEK TABELI
+            # Nagłówek tabeli
             st.markdown("""
-            <div class="pt-row" style="background:#1e293b;border-radius:6px 6px 0 0;font-weight:bold;">
-                <div class="pt-col" style="text-align:left;flex:1.5;">Ticker</div>
+            <div class="pt-header" style="display: flex; gap: 8px; padding: 12px 8px;">
+                <div class="pt-col" style="text-align:left; flex:1.5;">Ticker</div>
                 <div class="pt-col">Cena</div>
                 <div class="pt-col">Model %</div>
                 <div class="pt-col">Model (szt)</div>
@@ -402,33 +444,49 @@ with tab4:
             for idx, row in df_tickers.iterrows():
                 # Obliczenia
                 if alloc_method == "Wg wartości (%)":
-                    pct_key = f"pct_{idx}_{row['Ticker']}"
-                    pct = st.session_state.get(pct_key, 5.0)
-                    pct = st.number_input("Model %", 0.0, 100.0, pct, step=1.0, key=pct_key, label_visibility="collapsed")
+                    pct = st.number_input("Model %", 0.0, 100.0, 5.0, step=1.0, key=f"pct_{idx}_{row['Ticker']}", label_visibility="collapsed")
                     model_value = (pct/100) * st.session_state.paper_capital
                     model_qty = model_value / row["Price"]
                 else:
-                    qty_key = f"qty_{idx}_{row['Ticker']}"
-                    model_qty = st.session_state.get(qty_key, 10.0)
-                    model_qty = st.number_input("Model szt.", 0.0, 10000.0, model_qty, step=0.5, key=qty_key, label_visibility="collapsed")
+                    model_qty = st.number_input("Model szt.", 0.0, 10000.0, 10.0, step=0.5, key=f"qty_{idx}_{row['Ticker']}", label_visibility="collapsed")
                     model_value = model_qty * row["Price"]
                     pct = (model_value / st.session_state.paper_capital) * 100
                 
-                # Faktyczny portfel
-                real_key = f"real_{idx}_{row['Ticker']}"
-                real_qty = st.session_state.get(real_key, round(model_qty, 2))
-                real_qty = st.number_input("Faktyczny", 0.0, 10000.0, float(round(model_qty, 2)), step=0.01, key=real_key, label_visibility="collapsed")
+                # Faktyczny portfel - step=0.01 dla ułamków
+                real_qty = st.number_input(
+                    "Faktyczny", 
+                    0.0, 
+                    10000.0, 
+                    float(round(model_qty, 2)),
+                    step=0.01,
+                    key=f"real_{idx}_{row['Ticker']}",
+                    label_visibility="collapsed"
+                )
                 real_value = real_qty * row["Price"]
                 
-                # ✅ SPÓJNY WIERZ - wszystkie kolumny jako markdown
+                # Wiersz tabeli - czytelny layout
                 st.markdown(f"""
-                <div class="pt-row" style="background:#0f172a;border-radius:0;">
-                    <div class="pt-col" style="text-align:left;flex:1.5;"><b>{row['Ticker']}</b></div>
-                    <div class="pt-col"><span class="pt-value">{row['Price']:,.2f}</span><br><span class="pt-label">{st.session_state.currency}</span></div>
-                    <div class="pt-col"><span class="pt-value">{pct:.1f}%</span></div>
-                    <div class="pt-col"><span class="pt-value">{model_qty:.2f}</span><br><span class="pt-label">szt</span></div>
-                    <div class="pt-col"><span class="pt-value" style="color:#3b82f6;">{real_qty:.2f}</span><br><span class="pt-label">szt</span></div>
-                    <div class="pt-col"><span class="pt-value">{real_value:,.0f}</span><br><span class="pt-label">{st.session_state.currency}</span></div>
+                <div class="pt-row">
+                    <div class="pt-col" style="text-align:left; flex:1.5;">{row['Ticker']}</div>
+                    <div class="pt-col">
+                        <span class="pt-value">{row['Price']:,.2f}</span>
+                        <div class="pt-label">{st.session_state.currency}</div>
+                    </div>
+                    <div class="pt-col">
+                        <span class="pt-value">{pct:.1f}%</span>
+                    </div>
+                    <div class="pt-col">
+                        <span class="pt-value">{model_qty:.2f}</span>
+                        <div class="pt-label">szt</div>
+                    </div>
+                    <div class="pt-col">
+                        <span class="pt-value highlight">{real_qty:.2f}</span>
+                        <div class="pt-label">szt</div>
+                    </div>
+                    <div class="pt-col">
+                        <span class="pt-value">{real_value:,.0f}</span>
+                        <div class="pt-label">{st.session_state.currency}</div>
+                    </div>
                 </div>
                 """, unsafe_allow_html=True)
                 
@@ -466,13 +524,10 @@ with tab4:
                 st.download_button(
                     "📥 Eksportuj CSV",
                     csv,
-                    f"portfolio_{st.session_state.trade_mode}_{datetime.now().strftime('%Y%m%d')}.csv",
+                    f"portfolio_{st.session_state.exchange}_{st.session_state.trade_mode}_{datetime.now().strftime('%Y%m%d')}.csv",
                     "text/csv"
                 )
 
 # Stopka
 st.markdown("---")
 st.caption("🤖 AI Giełda Agent | Dane testowe (symulacja) | To narzędzie analityczne, nie doradztwo inwestycyjne")
-
-# ✅ Refresh tooltipów po renderowaniu
-st.experimental_rerun = False
