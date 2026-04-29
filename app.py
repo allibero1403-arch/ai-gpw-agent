@@ -11,7 +11,7 @@ st.markdown("""
     display: inline-flex; 
     align-items: center; 
     gap: 4px; 
-    cursor: pointer; 
+    cursor: help; 
 }
 .tooltip-icon { 
     width: 16px; 
@@ -23,26 +23,32 @@ st.markdown("""
     display: flex; 
     align-items: center; 
     justify-content: center; 
+    flex-shrink: 0;
 }
 .tooltip-text {
     visibility: hidden; 
     opacity: 0; 
-    width: 260px; 
+    width: 280px; 
     background: #1e293b; 
     color: #f8fafc;
     text-align: left; 
     border-radius: 8px; 
-    padding: 8px 12px; 
+    padding: 10px 14px; 
     position: absolute;
-    z-index: 100; 
-    bottom: 110%; 
+    z-index: 1000; 
+    bottom: 120%; 
     left: 50%; 
     transform: translateX(-50%);
     font-size: 12px; 
     line-height: 1.5; 
-    box-shadow: 0 6px 16px rgba(0,0,0,0.4);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.5);
     transition: all 0.25s ease; 
     pointer-events: none;
+    border: 1px solid #334155;
+}
+.tooltip-text::before {
+    content: "ℹ️";
+    margin-right: 6px;
 }
 .tooltip-wrap:hover .tooltip-text { 
     visibility: visible; 
@@ -96,30 +102,42 @@ st.markdown("""
     background: #10b981;
     color: white;
 }
+
+/* Header row styling */
+.header-row {
+    background: #0f172a;
+    padding: 10px;
+    border-radius: 8px;
+    margin-bottom: 10px;
+}
 </style>
 """, unsafe_allow_html=True)
 
 # 📖 LEGENDA WSKAŹNIKÓW (do tooltipów)
 INDICATOR_DESC = {
-    "Price": "Aktualna cena rynkowa akcji",
-    "Target Price": "Średnia cena docelowa analityków",
-    "Upside %": "Potencjał wzrostu do ceny docelowej (%)",
-    "Market Cap": "Kapitalizacja rynkowa spółki",
-    "Dividend Yield": "Roczna stopa dywidendy względem ceny (%)",
-    "PE Ratio": "Cena / Zysk. <15 często uznawane za atrakcyjne",
-    "PEG Ratio": "PE / Wzrost zysków. <1 sugeruje niedowycenienie",
-    "Quick Ratio (Q)": "Płynność szybka. >1 oznacza zdolność do spłaty zobowiązań",
-    "Debt/Assets (Q)": "Udział zadłużenia w aktywach. <0.5 = bezpiecznie",
-    "Signal Score": "Wynik kompozytowy 0-1: BUY≥0.6, HOLD 0.3-0.6, SELL≤0.3",
-    "Ilość (ułamkowa)": "Proponowana ilość akcji według modelu (może zawierać ułamki)",
-    "Faktyczny portfel": "Rzeczywista ilość akcji do wprowadzenia u brokera"
+    "Ticker": "Symbol giełdowy spółki na GPW",
+    "Price": "Aktualna cena rynkowa akcji (PLN)",
+    "Target Price": "Średnia cena docelowa analityków (PLN)",
+    "Upside %": "Potencjał wzrostu do ceny docelowej (%) = (Target - Price) / Price × 100",
+    "Market Cap": "Kapitalizacja rynkowa spółki (PLN)",
+    "Dividend Yield": "Roczna stopa dywidendy (%) = Dywidenda / Cena × 100",
+    "PE Ratio": "Cena / Zysk na akcję. <15 = atrakcyjna wycena, >25 = drogo",
+    "PEG Ratio": "PE / Wzrost zysków. <1 = niedowyceniona, >2 = przewartościowana",
+    "Quick Ratio (Q)": "Płynność szybka. >1 = zdolność do spłaty krótkich zobowiązań",
+    "Debt/Assets (Q)": "Udział zadłużenia w aktywach. <0.5 = bezpieczny poziom",
+    "Signal Score": "Wynik kompozytowy AI (0-1): BUY≥0.6, HOLD 0.3-0.6, SELL≤0.3",
+    "Signal": "Sygnał inwestycyjny: 🟢 BUY / 🟡 HOLD / 🔴 SELL",
+    "% Model": "Procentowy udział w portfelu według modelu AI",
+    "Ilość (ułamkowa)": "Sugerowana ilość akcji z modelu (może zawierać ułamki)",
+    "Faktyczny portfel": "Realna ilość akcji do wprowadzenia u brokera (obsługuje ułamki)",
+    "Wartość Realna": "Rzeczywista wartość pozycji w portfelu"
 }
 
 def tooltip_header(col):
     """Zwraca nagłówek z hover-tooltipem"""
     if col in INDICATOR_DESC:
         return f'<div class="tooltip-wrap">{col}<div class="tooltip-icon">i</div><div class="tooltip-text">{INDICATOR_DESC[col]}</div></div>'
-    return col
+    return f'<span style="color:#cbd5e1;font-weight:600;">{col}</span>'
 
 def format_currency(val, curr="PLN"):
     """Formatuje liczbę z walutą i odstępami tysięcznymi"""
@@ -233,6 +251,20 @@ cols_display = ["Ticker", "Price", "Target Price", "Upside %", "Market Cap", "Di
 # 📊 ZAKŁADKI
 tab1, tab2, tab3, tab4 = st.tabs(["📊 Dashboard", "🔍 Skaner", "📈 Sygnały", "💼 Paper Trading"])
 
+# Funkcja pomocnicza do wyświetlania nagłówków z tooltipami
+def display_tooltip_headers(columns):
+    headers_html = "".join([f'<th style="text-align:{"left" if i==0 else "center"}; padding: 8px; color: #f8fafc;">{tooltip_header(col)}</th>' 
+                           for i, col in enumerate(columns)])
+    st.markdown(f"""
+    <div class="header-row">
+        <table style="width:100%; border-collapse: collapse;">
+            <thead>
+                <tr>{headers_html}</tr>
+            </thead>
+        </table>
+    </div>
+    """, unsafe_allow_html=True)
+
 # TAB 1: DASHBOARD
 with tab1:
     mode_label = "Day Trade" if st.session_state.trade_mode == "daily" else "Swing/Monthly"
@@ -247,15 +279,8 @@ with tab1:
     st.subheader("🔥 Top Movers")
     movers = df_all.sort_values("Upside %", ascending=False).head(5)
     
-    headers_html = "".join([f'<th style="text-align:{"left" if i==0 else "center"}">{tooltip_header(col)}</th>' 
-                           for i, col in enumerate(cols_display)])
-    st.markdown(f"""
-    <table style="width:100%; border-collapse: collapse; margin-bottom: 0;">
-        <thead>
-            <tr>{headers_html}</tr>
-        </thead>
-    </table>
-    """, unsafe_allow_html=True)
+    # ✅ Tooltip headers w każdej zakładce
+    display_tooltip_headers(cols_display)
     
     st.dataframe(movers[cols_display].style.format({
         "Price": f"{{:,.2f}} {st.session_state.currency}", 
@@ -290,15 +315,8 @@ with tab2:
         ]
         st.success(f"Znaleziono {len(filt)} spółek")
         
-        headers_html = "".join([f'<th style="text-align:{"left" if i==0 else "center"}">{tooltip_header(col)}</th>' 
-                               for i, col in enumerate(cols_display)])
-        st.markdown(f"""
-        <table style="width:100%; border-collapse: collapse; margin-bottom: 0;">
-            <thead>
-                <tr>{headers_html}</tr>
-            </thead>
-        </table>
-        """, unsafe_allow_html=True)
+        # ✅ Tooltip headers w każdej zakładce
+        display_tooltip_headers(cols_display)
         
         st.dataframe(filt[cols_display].style.format({
             "Price": f"{{:,.2f}} {st.session_state.currency}", 
@@ -316,15 +334,8 @@ with tab3:
     sig_filter = st.radio("Filtr sygnałów", ["Wszystkie", "🟢 BUY", "🟡 HOLD", "🔴 SELL"], horizontal=True)
     df_sig = df_all[df_all["Signal"] == sig_filter] if sig_filter != "Wszystkie" else df_all
     
-    headers_html = "".join([f'<th style="text-align:{"left" if i==0 else "center"}">{tooltip_header(col)}</th>' 
-                           for i, col in enumerate(cols_display)])
-    st.markdown(f"""
-    <table style="width:100%; border-collapse: collapse; margin-bottom: 0;">
-        <thead>
-            <tr>{headers_html}</tr>
-        </thead>
-    </table>
-    """, unsafe_allow_html=True)
+    # ✅ Tooltip headers w każdej zakładce
+    display_tooltip_headers(cols_display)
     
     st.dataframe(df_sig[cols_display].style.format({
         "Price": f"{{:,.2f}} {st.session_state.currency}", 
@@ -333,6 +344,8 @@ with tab3:
         "Market Cap": lambda x: format_currency(x, st.session_state.currency), 
         "Signal Score": "{:.2f}"
     }), use_container_width=True, hide_index=True)
+    
+    st.caption("💡 Najedź na ikonę ℹ️ przy nazwie kolumny, aby zobaczyć opis wskaźnika")
 
 # TAB 4: PAPER TRADING
 with tab4:
@@ -348,15 +361,19 @@ with tab4:
         
     with col_right:
         st.markdown("📝 Konfiguracja pozycji: **Model AI vs Realny Portfel**")
+        st.caption("💡 Ułamkowe części akcji są dozwolone (2 miejsca po przecinku)")
+        
         if tickers_list:
             alloc_data = []
             df_tickers = df_all[df_all["Ticker"].isin(tickers_list)]
             
             for idx, row in df_tickers.iterrows():
-                cA, cB, cC, cD = st.columns([3, 2, 2, 2])
+                cA, cB, cC, cD, cE = st.columns([2, 2, 2, 2, 2])
                 with cA:
                     st.markdown(f"**{row['Ticker']}**")
                 with cB:
+                    st.markdown(f"Cena: **{row['Price']:,.2f} {st.session_state.currency}**")
+                with cC:
                     if alloc_method == "Wg wartości (%)":
                         pct = st.number_input(f"Model %", 0.0, 100.0, 5.0, step=1.0, key=f"pct_{row['Ticker']}")
                         model_value = (pct/100) * st.session_state.paper_capital
@@ -365,23 +382,23 @@ with tab4:
                         model_qty = st.number_input(f"Model Ilość", 0.0, 10000.0, 10.0, step=0.5, key=f"qty_{row['Ticker']}")
                         model_value = model_qty * row["Price"]
                         pct = (model_value / st.session_state.paper_capital) * 100
-                with cC:
-                    # ✅ POPRAWKA: Wszystkie parametry jako float dla spójności typów
+                with cD:
+                    # ✅ POPRAWKA: step=0.01 dla ułamkowych części akcji (2 miejsca po przecinku)
                     real_qty = st.number_input(
-                        f"Real Ilość", 
+                        f"Faktyczny", 
                         0.0, 
                         10000.0, 
-                        float(round(model_qty)),  # Konwersja na float!
-                        step=1.0, 
+                        float(round(model_qty, 2)),
+                        step=0.01,  # ✅ 2 miejsca po przecinku
                         key=f"real_{row['Ticker']}"
                     )
                     real_value = real_qty * row["Price"]
-                with cD:
-                    st.metric("Real Value", format_currency(real_value, st.session_state.currency))
+                with cE:
+                    st.metric(f"Wartość", format_currency(real_value, st.session_state.currency))
                 
                 alloc_data.append({
                     "Ticker": row["Ticker"], 
-                    "Price": row["Price"], 
+                    "Cena": row["Price"],
                     "% Model": pct, 
                     "Ilość (ułamkowa)": model_qty, 
                     "Faktyczny portfel": real_qty, 
@@ -392,12 +409,18 @@ with tab4:
             total_real_alloc = df_alloc["Wartość Realna"].sum()
             remaining = st.session_state.paper_capital - total_real_alloc
             
-            display_cols = ["Ticker", "Price", "% Model", "Ilość (ułamkowa)", "Faktyczny portfel", "Wartość Realna"]
+            # ✅ Dodano kolumnę "Cena" do wyświetlania
+            display_cols = ["Ticker", "Cena", "% Model", "Ilość (ułamkowa)", "Faktyczny portfel", "Wartość Realna"]
+            
+            # ✅ Tooltip headers dla Paper Trading
+            pt_cols_display = ["Ticker", "Cena", "% Model", "Ilość (ułamkowa)", "Faktyczny portfel", "Wartość Realna"]
+            display_tooltip_headers(pt_cols_display)
+            
             st.dataframe(
                 df_alloc[display_cols].style.format({
-                    "Price": f"{{:,.2f}} {st.session_state.currency}", 
+                    "Cena": f"{{:,.2f}} {st.session_state.currency}",
                     "Ilość (ułamkowa)": "{:.4f}", 
-                    "Faktyczny portfel": "{:.2f}",
+                    "Faktyczny portfel": "{:.2f}",  # ✅ 2 miejsca po przecinku
                     "Wartość Realna": f"{{:,.2f}} {st.session_state.currency}", 
                     "% Model": "{:.2f}%"
                 }), 
@@ -411,7 +434,7 @@ with tab4:
             cR1.metric("📊 Zaalokowano (Real)", format_currency(total_real_alloc, st.session_state.currency))
             cR2.metric("💵 Gotówka", format_currency(remaining, st.session_state.currency), 
                        delta=f"{(remaining/st.session_state.paper_capital)*100:.1f}%")
-            cR3.metric("📊 Zaalokowano (Model)", format_currency(df_alloc["Ilość (ułamkowa)"].sum() * df_alloc["Price"].mean(), st.session_state.currency))
+            cR3.metric("📊 Zaalokowano (Model)", format_currency(df_alloc["Ilość (ułamkowa)"].sum() * df_alloc["Cena"].mean(), st.session_state.currency))
             cR4.metric("⚠️ Nadpłynięcie", "TAK" if remaining < 0 else "NIE", 
                        delta=f"{remaining:,.0f} {st.session_state.currency}")
             
@@ -431,4 +454,4 @@ with tab4:
 
 # Stopka
 st.markdown("---")
-st.caption("🤖 AI Giełda Agent | System Hybrydowy (Model → Real) | Dane testowe (symulacja)")
+st.caption("🤖 AI Giełda Agent | System Hybrydowy (Model → Real) | Dane testowe (symulacja) | To narzędzie analityczne, nie doradztwo inwestycyjne")
