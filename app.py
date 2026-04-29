@@ -43,7 +43,7 @@ st.markdown("""
     text-align: left !important; 
 }
 
-/* Paper Trading - czytelny layout z inputami w linii */
+/* Paper Trading - czytelny layout */
 .pt-container {
     background: #ffffff;
     border: 1px solid #e2e8f0;
@@ -63,7 +63,7 @@ st.markdown("""
 .pt-row {
     display: flex;
     align-items: center;
-    padding: 12px 12px;
+    padding: 14px 12px;
     border-bottom: 1px solid #e2e8f0;
     gap: 12px;
     background: #ffffff;
@@ -77,6 +77,7 @@ st.markdown("""
 .pt-col {
     flex: 1;
     text-align: center;
+    min-width: 80px;
 }
 .pt-col:first-child {
     text-align: left;
@@ -85,11 +86,11 @@ st.markdown("""
     color: #1e3a5f;
 }
 .pt-label {
-    font-size: 10px;
+    font-size: 9px;
     color: #64748b;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    margin-bottom: 4px;
+    margin-top: 2px;
 }
 .pt-value {
     font-size: 14px;
@@ -100,13 +101,15 @@ st.markdown("""
     color: #3b82f6;
     font-weight: 600;
 }
-.pt-input-container {
-    width: 100%;
+
+/* Inputy w linii - bez label */
+.stNumberInput {
+    min-width: 70px;
 }
-.pt-input-container label {
+.stNumberInput label {
     display: none !important;
 }
-.pt-input-container input {
+.stNumberInput input {
     width: 100%;
     text-align: center;
     border: 1px solid #e2e8f0;
@@ -115,7 +118,7 @@ st.markdown("""
     font-size: 13px;
     background: #f8fafc;
 }
-.pt-input-container input:focus {
+.stNumberInput input:focus {
     border-color: #3b82f6;
     outline: none;
     background: #ffffff;
@@ -130,7 +133,7 @@ st.markdown("""
 }
 [data-testid="stMetricLabel"] {
     color: #64748b !important;
-    font-size: 13px !important;
+    font-size: 12px !important;
 }
 [data-testid="stMetricValue"] {
     color: #1e3a5f !important;
@@ -176,7 +179,7 @@ st.markdown("""
     font-weight: 600;
 }
 
-/* Exchange selector badges */
+/* Exchange badges */
 .exchange-badge {
     display: inline-block;
     padding: 6px 14px;
@@ -190,15 +193,34 @@ st.markdown("""
 .exchange-wig80 { background: #fef3c7; color: #92400e; }
 .exchange-ibkr { background: #e0e7ff; color: #4338ca; }
 
-/* Tooltip info box */
-.tooltip-info {
+/* Tooltip legend box */
+.tooltip-legend {
     background: #eff6ff;
     border: 1px solid #bfdbfe;
-    border-radius: 6px;
-    padding: 10px 14px;
-    margin: 10px 0;
-    font-size: 12px;
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin: 16px 0;
+}
+.tooltip-legend-title {
     color: #1e40af;
+    font-weight: 600;
+    font-size: 13px;
+    margin-bottom: 10px;
+}
+.tooltip-item {
+    display: inline-block;
+    background: #ffffff;
+    border: 1px solid #dbeafe;
+    border-radius: 6px;
+    padding: 6px 10px;
+    margin: 4px;
+    font-size: 11px;
+    color: #1e3a5f;
+    cursor: help;
+}
+.tooltip-item:hover {
+    background: #dbeafe;
+    border-color: #3b82f6;
 }
 
 /* Section headers */
@@ -210,10 +232,19 @@ st.markdown("""
     padding-bottom: 8px;
     border-bottom: 2px solid #e2e8f0;
 }
+
+/* Summary box at top */
+.summary-box {
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 20px;
+}
 </style>
 """, unsafe_allow_html=True)
 
-# 📖 LEGENDA WSKAŹNIKÓW - używamy help parametru Streamlit
+# 📖 LEGENDA WSKAŹNIKÓW
 INDICATOR_HELP = {
     "Ticker": "Symbol giełdowy spółki",
     "Price": "Aktualna cena rynkowa akcji",
@@ -226,7 +257,7 @@ INDICATOR_HELP = {
     "Quick Ratio (Q)": "Płynność szybka. >1 = zdolność do spłaty zobowiązań",
     "Debt/Assets (Q)": "Zadłużenie/Aktywa. <0.5 = bezpieczny poziom",
     "Signal Score": "Wynik AI (0-1). BUY≥0.6, HOLD 0.3-0.6, SELL≤0.3",
-    "Signal": "Sygnał: 🟢BUY HOLD 🔴SELL",
+    "Signal": "Sygnał: 🟢BUY 🟡HOLD 🔴SELL",
     "Cena": "Cena pojedynczej akcji",
     "% Model": "Procent alokacji wg modelu AI",
     "Ilość (ułamkowa)": "Sugerowana ilość akcji z modelu",
@@ -323,7 +354,7 @@ st.markdown("<p style='color: #64748b; font-size: 14px; margin-bottom: 20px;'>Pa
 with st.sidebar:
     st.markdown("<h3 style='color: #1e3a5f; margin-bottom: 16px;'>⚙️ Konfiguracja</h3>", unsafe_allow_html=True)
     
-    # ✅ WYBÓR GIEŁDY
+    # WYBÓR GIEŁDY
     st.markdown("<p style='color: #64748b; font-size: 12px; font-weight: 600; margin-bottom: 8px;'>📍 Giełda / Indeks</p>", unsafe_allow_html=True)
     exchange = st.selectbox(
         "Wybierz indeks",
@@ -333,7 +364,6 @@ with st.sidebar:
     )
     st.session_state.exchange = exchange
     
-    # Badge giełdy
     badge_class = f"exchange-{exchange.lower()}"
     st.markdown(f'<span class="exchange-badge {badge_class}">📊 {exchange}</span>', unsafe_allow_html=True)
     
@@ -355,17 +385,14 @@ with st.sidebar:
     
     st.divider()
     
-    # Waluta
     curr = st.selectbox("💱 Waluta", ["PLN", "USD"], index=0)
     st.session_state.currency = curr
     
-    # Kapitał
     capital = st.number_input("💰 Kapitał startowy", min_value=1000.0, value=100000.0, step=5000.0)
     st.session_state.paper_capital = capital
     
     st.divider()
     
-    # Info
     mode_hint = "Szybkie momentum, sentyment" if st.session_state.trade_mode == "daily" else "Wartość, dywidendy"
     st.markdown(f"""
     <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; margin-top: 10px;">
@@ -379,55 +406,66 @@ with st.sidebar:
 tickers = INDEX_TICKERS[st.session_state.exchange]
 df_all = generate_mock_data(tickers, st.session_state.trade_mode)
 
-# Kolumny z help dla tooltipów
-cols_with_help = [
-    ("Ticker", INDICATOR_HELP["Ticker"]),
-    ("Price", INDICATOR_HELP["Price"]),
-    ("Target Price", INDICATOR_HELP["Target Price"]),
-    ("Upside %", INDICATOR_HELP["Upside %"]),
-    ("Market Cap", INDICATOR_HELP["Market Cap"]),
-    ("Dividend Yield", INDICATOR_HELP["Dividend Yield"]),
-    ("PE Ratio", INDICATOR_HELP["PE Ratio"]),
-    ("PEG Ratio", INDICATOR_HELP["PEG Ratio"]),
-    ("Quick Ratio (Q)", INDICATOR_HELP["Quick Ratio (Q)"]),
-    ("Debt/Assets (Q)", INDICATOR_HELP["Debt/Assets (Q)"]),
-    ("Signal", INDICATOR_HELP["Signal"]),
-    ("Signal Score", INDICATOR_HELP["Signal Score"])
-]
-
-cols_display = [col[0] for col in cols_with_help]
+cols_display = ["Ticker", "Price", "Target Price", "Upside %", "Market Cap", "Dividend Yield", 
+                "PE Ratio", "PEG Ratio", "Quick Ratio (Q)", "Debt/Assets (Q)", "Signal", "Signal Score"]
 
 # 📊 ZAKŁADKI
 tab1, tab2, tab3, tab4 = st.tabs(["📊 Dashboard", "🔍 Skaner", "📈 Sygnały", "💼 Paper Trading"])
 
-# TAB 1: DASHBOARD
+# TAB 1: DASHBOARD - TYLKO ZATWIERDZONE POZYCJE
 with tab1:
     mode_label = "Day Trade" if st.session_state.trade_mode == "daily" else "Swing/Monthly"
     st.markdown(f"<h3 class='section-header'>📊 Dashboard — {mode_label} | {st.session_state.exchange}</h3>", unsafe_allow_html=True)
     
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("📈 Aktywa w portfelu", "20/30")
-    c2.metric("🟢 Sygnały BUY", f"{len(df_all[df_all['Signal']=='🟢 BUY'])}")
-    c3.metric("📊 Śr. Upside", f"{df_all['Upside %'].mean():.1f}%")
-    c4.metric("🔄 Ostatni rebalans", datetime.now().strftime("%Y-%m-%d"))
-    
-    st.markdown("<h4 style='color: #1e3a5f; margin-top: 24px;'>🔥 Top Movers</h4>", unsafe_allow_html=True)
-    movers = df_all.sort_values("Upside %", ascending=False).head(5)
-    
-    st.dataframe(movers[cols_display].style.format({
-        "Price": f"{{:,.2f}} {st.session_state.currency}", 
-        "Target Price": f"{{:,.2f}} {st.session_state.currency}", 
-        "Upside %": "{:.2f}%",
-        "Market Cap": lambda x: format_currency(x, st.session_state.currency), 
-        "Signal Score": "{:.2f}"
-    }), use_container_width=True, hide_index=True)
-    
-    # ✅ Tooltip info box
+    # ✅ LEGENDA WSKAŹNIKÓW (tooltipy)
     st.markdown("""
-    <div class="tooltip-info">
-        💡 <b>Wskazówka:</b> Najedź kursorem na nagłówek kolumny w tabeli, aby zobaczyć opis wskaźnika
+    <div class="tooltip-legend">
+        <div class="tooltip-legend-title">📖 Legenda wskaźników (najedź myszką)</div>
+        <div>
+            <span class="tooltip-item" title="Aktualna cena rynkowa akcji">Price</span>
+            <span class="tooltip-item" title="Potencjał wzrostu (%)">Upside %</span>
+            <span class="tooltip-item" title="Cena/Zysk. <15 = tanio">PE Ratio</span>
+            <span class="tooltip-item" title="Stopa dywidendy (%)">Div Yield</span>
+            <span class="tooltip-item" title="Płynność szybka. >1 = OK">Quick Ratio</span>
+            <span class="tooltip-item" title="Zadłużenie/Aktywa. <0.5 = bezpiecznie">Debt/Assets</span>
+            <span class="tooltip-item" title="Wynik AI. BUY≥0.6">Signal Score</span>
+        </div>
     </div>
     """, unsafe_allow_html=True)
+    
+    # ✅ SPRAWDŹ CZY SĄ ZATWIERDZONE POZYCJE
+    if not st.session_state.portfolio_alloc.empty:
+        # Filtruj tylko zatwierdzone tickery
+        approved_tickers = st.session_state.portfolio_alloc["Ticker"].tolist()
+        df_portfolio = df_all[df_all["Ticker"].isin(approved_tickers)]
+        
+        if not df_portfolio.empty:
+            c1, c2, c3, c4 = st.columns(4)
+            c1.metric("📈 Pozycji w portfelu", f"{len(df_portfolio)}")
+            c2.metric("🟢 Śr. Signal Score", f"{df_portfolio['Signal Score'].mean():.2f}")
+            c3.metric("📊 Śr. Upside", f"{df_portfolio['Upside %'].mean():.1f}%")
+            c4.metric("💰 Zainwestowano", format_currency(st.session_state.portfolio_alloc["Wartość Realna"].sum(), st.session_state.currency))
+            
+            st.markdown("<h4 style='color: #1e3a5f; margin-top: 24px;'>📦 Zatwierdzone Pozycje</h4>", unsafe_allow_html=True)
+            
+            # Połącz z danymi z portfela
+            df_display = df_portfolio.merge(
+                st.session_state.portfolio_alloc[["Ticker", "Faktyczny portfel", "Wartość Realna", "% Model"]],
+                on="Ticker",
+                how="left"
+            )
+            
+            st.dataframe(df_display[["Ticker", "Price", "Faktyczny portfel", "Wartość Realna", "% Model", "Upside %", "Signal"]].style.format({
+                "Price": f"{{:,.2f}} {st.session_state.currency}",
+                "Faktyczny portfel": "{:.2f}",
+                "Wartość Realna": f"{{:,.0f}} {st.session_state.currency}",
+                "% Model": "{:.1f}%",
+                "Upside %": "{:.1f}%"
+            }), use_container_width=True, hide_index=True)
+        else:
+            st.info("⚠️ Brak zatwierdzonych pozycji w portfelu. Dodaj pozycje w zakładce Paper Trading.")
+    else:
+        st.info("⚠️ Brak zatwierdzonych pozycji w portfelu. Dodaj pozycje w zakładce Paper Trading.")
 
 # TAB 2: SKANER
 with tab2:
@@ -478,7 +516,7 @@ with tab3:
         "Signal Score": "{:.2f}"
     }), use_container_width=True, hide_index=True)
 
-# TAB 4: PAPER TRADING - CZYTELNY LAYOUT Z INPUTAMI
+# TAB 4: PAPER TRADING - PODSUMOWANIE NA GÓRZE + 1 POZYCJA = 1 LINIA
 with tab4:
     mode_label = "Day Trade" if st.session_state.trade_mode == "daily" else "Swing/Monthly"
     st.markdown(f"<h3 class='section-header'>💼 Panel Paper Trading — {mode_label} | {st.session_state.exchange}</h3>", unsafe_allow_html=True)
@@ -493,14 +531,65 @@ with tab4:
         tickers_list = st.multiselect("Wybór walorów", df_all["Ticker"].tolist(), default=df_all["Ticker"].tolist()[:5])
         
     with col_right:
-        st.markdown("<p style='color: #64748b; font-size: 12px;'>📝 Konfiguracja pozycji</p>", unsafe_allow_html=True)
+        # ✅ PODSUMOWANIE NA GÓRZE
+        if tickers_list:
+            # Oblicz podsumowanie
+            total_model = 0
+            total_real = 0
+            for idx, row in df_all[df_all["Ticker"].isin(tickers_list)].iterrows():
+                pct_key = f"pct_{idx}_{row['Ticker']}"
+                qty_key = f"qty_{idx}_{row['Ticker']}"
+                real_key = f"real_{idx}_{row['Ticker']}"
+                
+                if alloc_method == "Wg wartości (%)":
+                    pct = st.session_state.get(pct_key, 5.0)
+                    model_value = (pct/100) * st.session_state.paper_capital
+                    model_qty = model_value / row["Price"]
+                else:
+                    model_qty = st.session_state.get(qty_key, 10.0)
+                    model_value = model_qty * row["Price"]
+                
+                real_qty = st.session_state.get(real_key, round(model_qty, 2))
+                real_value = real_qty * row["Price"]
+                
+                total_model += model_value
+                total_real += real_value
+            
+            remaining = st.session_state.paper_capital - total_real
+            
+            # ✅ SUMMARY BOX NA GÓRZE
+            st.markdown(f"""
+            <div class="summary-box">
+                <div style="display: flex; gap: 16px; flex-wrap: wrap;">
+                    <div style="flex: 1; min-width: 150px;">
+                        <div style="color: #64748b; font-size: 11px;">📊 Zaalokowano (Model)</div>
+                        <div style="color: #1e3a5f; font-size: 20px; font-weight: 600;">{format_currency(total_model, st.session_state.currency)}</div>
+                    </div>
+                    <div style="flex: 1; min-width: 150px;">
+                        <div style="color: #64748b; font-size: 11px;">📊 Zaalokowano (Real)</div>
+                        <div style="color: #1e3a5f; font-size: 20px; font-weight: 600;">{format_currency(total_real, st.session_state.currency)}</div>
+                    </div>
+                    <div style="flex: 1; min-width: 150px;">
+                        <div style="color: #64748b; font-size: 11px;">💵 Gotówka</div>
+                        <div style="color: #10b981; font-size: 20px; font-weight: 600;">{format_currency(remaining, st.session_state.currency)}</div>
+                        <div style="color: #10b981; font-size: 11px;">{((remaining/st.session_state.paper_capital)*100):.1f}% wolnych</div>
+                    </div>
+                    <div style="flex: 1; min-width: 150px;">
+                        <div style="color: #64748b; font-size: 11px;">⚠️ Nadpłynięcie</div>
+                        <div style="color: {'#ef4444' if remaining < 0 else '#10b981'}; font-size: 20px; font-weight: 600;">{'TAK' if remaining < 0 else 'NIE'}</div>
+                    </div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        st.markdown("<p style='color: #64748b; font-size: 12px; margin-top: 16px;'>📝 Konfiguracja pozycji</p>", unsafe_allow_html=True)
         st.caption("💡 Ułamkowe części akcji dozwolone (2 miejsca po przecinku)")
         
         if tickers_list:
             alloc_data = []
             df_tickers = df_all[df_all["Ticker"].isin(tickers_list)]
             
-            # ✅ NAGŁÓWEK TABELI
+            # NAGŁÓWEK TABELI
             st.markdown("""
             <div class="pt-header">
                 <div class="pt-col" style="text-align:left; flex:1.5;">Ticker</div>
@@ -535,27 +624,27 @@ with tab4:
                 )
                 real_value = real_qty * row["Price"]
                 
-                # ✅ SPÓJNY WIERZ Z INPUTAMI W LINII
+                # ✅ 1 POZYCJA = 1 LINIA (flexbox)
                 st.markdown(f"""
                 <div class="pt-row">
                     <div class="pt-col" style="text-align:left; flex:1.5;">{row['Ticker']}</div>
                     <div class="pt-col">
-                        <span class="pt-value">{row['Price']:,.2f}</span>
+                        <div class="pt-value">{row['Price']:,.2f}</div>
                         <div class="pt-label">{st.session_state.currency}</div>
                     </div>
                     <div class="pt-col">
-                        <span class="pt-value">{pct:.1f}%</span>
+                        <div class="pt-value">{pct:.1f}%</div>
                     </div>
                     <div class="pt-col">
-                        <span class="pt-value">{model_qty:.2f}</span>
+                        <div class="pt-value">{model_qty:.2f}</div>
                         <div class="pt-label">szt</div>
                     </div>
                     <div class="pt-col">
-                        <span class="pt-value highlight">{real_qty:.2f}</span>
+                        <div class="pt-value highlight">{real_qty:.2f}</div>
                         <div class="pt-label">szt</div>
                     </div>
                     <div class="pt-col">
-                        <span class="pt-value">{real_value:,.0f}</span>
+                        <div class="pt-value">{real_value:,.0f}</div>
                         <div class="pt-label">{st.session_state.currency}</div>
                     </div>
                 </div>
@@ -571,24 +660,13 @@ with tab4:
                 })
             
             df_alloc = pd.DataFrame(alloc_data)
-            total_real_alloc = df_alloc["Wartość Realna"].sum()
-            remaining = st.session_state.paper_capital - total_real_alloc
             
             st.divider()
-            
-            # Podsumowanie
-            cR1, cR2, cR3, cR4 = st.columns(4)
-            cR1.metric("📊 Zaalokowano", format_currency(total_real_alloc, st.session_state.currency))
-            cR2.metric("💵 Gotówka", format_currency(remaining, st.session_state.currency), 
-                       delta=f"{(remaining/st.session_state.paper_capital)*100:.1f}%")
-            cR3.metric("📊 Pozycji", f"{len(df_alloc)}")
-            cR4.metric("⚠️ Nadpłynięcie", "TAK" if remaining < 0 else "NIE", 
-                       delta=f"{remaining:,.0f} {st.session_state.currency}")
             
             if st.button("💾 Zatwierdź portfel", type="primary"):
                 st.session_state.portfolio_alloc = df_alloc.copy()
                 st.session_state.portfolio_alloc["Data dodania"] = datetime.now().strftime("%Y-%m-%d")
-                st.success("✅ Portfel zapisany!")
+                st.success("✅ Portfel zapisany! Sprawdź w Dashboard.")
             
             if not df_alloc.empty:
                 csv = df_alloc.to_csv(index=False).encode('utf-8')
