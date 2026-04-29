@@ -32,7 +32,7 @@ st.markdown("""
     color: #f8fafc;
     text-align: left; 
     border-radius: 8px; 
-    padding: 8极 12px; 
+    padding: 8px 12px; 
     position: absolute;
     z-index: 100; 
     bottom: 110%; 
@@ -85,6 +85,8 @@ st.markdown("""
     border-radius: 20px;
     font-size: 12px;
     font-weight: bold;
+    display: inline-block;
+    margin-bottom: 10px;
 }
 .mode-daily {
     background: #ef4444;
@@ -112,7 +114,7 @@ INDICATOR_DESC = {
     "PEG Ratio": "PE / Wzrost zysków. <1 sugeruje niedowycenienie względem wzrostu",
     "Revenue (TTM)": "Przychody z ostatnich 12 miesięcy",
     "Free Cash Flow (TTM)": "Gotówka po odliczeniu nakładów inwestycyjnych (12m)",
-    "Net Income (TTM极": "Zysk netto spółki (12m)",
+    "Net Income (TTM)": "Zysk netto spółki (12m)",
     "Debt/Assets (Q)": "Udział zadłużenia w aktywach (kwartalnie). <0.5 = bezpiecznie",
     "Quick Ratio (Q)": "Płynność szybka. >1 oznacza zdolność do spłaty krótkich zobowiązań",
     "Signal Score": "Wynik kompozytowy 0-1: BUY≥0.6, HOLD 0.3-0.6, SELL≤0.3",
@@ -128,7 +130,8 @@ def tooltip_header(col):
 
 def format_currency(val, curr="PLN"):
     """Formatuje liczbę z walutą i odstępami tysięcznymi"""
-    if pd.isna(val): return "-"
+    if pd.isna(val): 
+        return "-"
     return f"{val:,.0f} {curr}"
 
 @st.cache_data(ttl=3600)
@@ -144,11 +147,9 @@ def generate_mock_data(trade_mode="daily"):
         if trade_mode == "daily":
             # Większa zmienność dla day tradingu
             sentiment = np.round(np.random.uniform(-0.4, 0.9), 2)
-            volatility = np.random.uniform(0.02, 0.08)
         else:
             # Mniejsza zmienność dla monthly tradingu
             sentiment = np.round(np.random.uniform(-0.2, 0.6), 2)
-            volatility = np.random.uniform(0.01, 0.04)
             
         data.append({
             "Ticker": t, 
@@ -157,20 +158,11 @@ def generate_mock_data(trade_mode="daily"):
             "Upside %": np.round((target/price - 1)*100, 2),
             "Market Cap": np.random.randint(2e9, 40e9),
             "Dividend Yield": np.round(np.random.uniform(0, 12), 2),
-            "Revenue Est. Growth (2Y)": np.round(np.random.uniform(-2, 20), 2),
-            "EPS Est. Growth (2Y)": np.round(np.random.uniform(-3, 25), 2),
-            "EPS Long-Term (5Y)": np.round(np.random.uniform(0, 18), 2),
-            "PS Ratio": np.round(np极dom.uniform(0.8, 6.0), 2),
             "PE Ratio": np.round(np.random.uniform(6, 30), 2),
             "PEG Ratio": np.round(np.random.uniform(0.6, 2.8), 2),
-            "Revenue (TTM)": np.random.randint(500e6, 25e9),
-            "Free Cash Flow (TTM)": np.random.randint(-200e6, 4e9),
-            "Net Income (TTM)": np.random.randint(-100e6, 3e9),
-            "Debt/Assets (Q)": np.round(np.random.uniform(0.15, 0.75), 2),
             "Quick Ratio (Q)": np.round(np.random.uniform(0.4, 3.2), 2),
-            "Analyst Rating": np.random.choice(["Strong Buy", "Buy", "Hold", "Sell"], p=[0.15, 0.35, 0.4, 0.1]),
-            "Sentiment": sentiment,
-            "Volatility": volatility
+            "Debt/Assets (Q)": np.round(np.random.uniform(0.15, 0.75), 2),
+            "Sentiment": sentiment
         })
     
     df = pd.DataFrame(data)
@@ -179,22 +171,22 @@ def generate_mock_data(trade_mode="daily"):
     if trade_mode == "daily":
         # Day trading: większy nacisk na krótkoterminowe wskaźniki
         df["Signal Score"] = (
-            (df["PE Ratio"] < 18)*0.15 + 
-            (df["PEG Ratio"] < 1.0)*0.2 + 
-            (df["Dividend Yield"] > 2)*0.1 +
-            (df["Quick Ratio (Q)"] > 0.8)*0.15 + 
-            (df["Upside %"] > 8)*极.25 + 
-            (df["Sentiment"] > 0.4)*0.15
+            (df["PE Ratio"] < 18) * 0.15 + 
+            (df["PEG Ratio"] < 1.0) * 0.2 + 
+            (df["Dividend Yield"] > 2) * 0.1 +
+            (df["Quick Ratio (Q)"] > 0.8) * 0.15 + 
+            (df["Upside %"] > 8) * 0.25 + 
+            (df["Sentiment"] > 0.4) * 0.15
         )
     else:
         # Monthly trading: większy nacisk na długoterminowe wskaźniki
         df["Signal Score"] = (
-            (df["PE Ratio"] < 15)*0.2 + 
-            (df["PEG Ratio"] < 1.2)*0.15 + 
-            (df["Dividend Yield"] > 3)*0.2 +
-            (df["Quick Ratio (Q)"] > 1)*0.15 + 
-            (df["Upside %"] > 10)*0.2 + 
-            (df["Debt/Assets (Q)"] < 0.5)*0.1
+            (df["PE Ratio"] < 15) * 0.2 + 
+            (df["PEG Ratio"] < 1.2) * 0.15 + 
+            (df["Dividend Yield"] > 3) * 0.2 +
+            (df["Quick Ratio (Q)"] > 1) * 0.15 + 
+            (df["Upside %"] > 10) * 0.2 + 
+            (df["Debt/Assets (Q)"] < 0.5) * 0.1
         )
     
     df["Signal"] = df["Signal Score"].apply(lambda x: "🟢 BUY" if x >= 0.6 else ("🔴 SELL" if x <= 0.3 else "🟡 HOLD"))
@@ -243,8 +235,8 @@ with st.sidebar:
     <div class="sidebar-hint">
         <div class="sidebar-hint-title">📖 Strategia: {badge_text}</div>
         <div>{mode_hint}</div>
-        <div>PE<15 = tanio | DY>3% = dywidenda</div>
-        <div>Quick>1 = płynność | Upside>10% = potencjał</div>
+        <div>PE&lt;15 = tanio | DY&gt;3% = dywidenda</div>
+        <div>Quick&gt;1 = płynność | Upside&gt;10% = potencjał</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -283,7 +275,7 @@ with tab1:
     
     st.dataframe(movers[cols_display].style.format({
         "Price": f"{{:,.2f}} {st.session_state.currency}", 
-        "Target Price": f"{{:,.2极}} {st.session_state.currency}", 
+        "Target Price": f"{{:,.2f}} {st.session_state.currency}", 
         "Upside %": "{:.2f}%",
         "Market Cap": lambda x: format_currency(x, st.session_state.currency), 
         "Signal Score": "{:.2f}"
@@ -325,7 +317,7 @@ with tab2:
         </table>
         """, unsafe_allow_html=True)
         
-        st.dataframe(filt[cols极isplay].style.format({
+        st.dataframe(filt[cols_display].style.format({
             "Price": f"{{:,.2f}} {st.session_state.currency}", 
             "Target Price": f"{{:,.2f}} {st.session_state.currency}", 
             "Upside %": "{:.2f}%",
