@@ -3,22 +3,22 @@ import pandas as pd
 import numpy as np
 from datetime import datetime
 
-# 🎨 STYLIZACJA CSS - Jasny motyw (pastelowe szarości i niebieski)
+# 🎨 STYLIZACJA CSS - Jasny motyw + Tooltipy + Czytelny layout
 st.markdown("""
 <style>
-/* Główny motyw - jasny */
+/* Główny motyw - jasny pastelowy */
 .stApp {
     background: #f8fafc;
 }
 
-/* Tooltip na nagłówkach tabel */
+/* Tabele - czytelne nagłówki */
 [data-testid="stDataFrame"] table th,
 [data-testid="stTable"] table th {
     background: #e2e8f0 !important;
     color: #1e3a5f !important;
     font-weight: 600 !important;
     border-bottom: 2px solid #3b82f6 !important;
-    cursor: help;
+    padding: 12px 8px !important;
 }
 
 [data-testid="stDataFrame"] table td,
@@ -26,6 +26,7 @@ st.markdown("""
     background: #ffffff !important;
     color: #1e293b !important;
     border-bottom: 1px solid #e2e8f0 !important;
+    padding: 10px 8px !important;
 }
 
 /* Wyrównanie tabeli */
@@ -42,40 +43,40 @@ st.markdown("""
     text-align: left !important; 
 }
 
-/* Paper Trading - czytelny layout */
+/* Paper Trading - czytelny layout z inputami w linii */
 .pt-container {
     background: #ffffff;
     border: 1px solid #e2e8f0;
     border-radius: 8px;
-    padding: 0;
+    overflow: hidden;
     margin: 10px 0;
 }
 .pt-header {
     background: #f1f5f9;
-    padding: 12px 8px;
-    border-radius: 8px 8px 0 0;
+    padding: 14px 12px;
     font-weight: 600;
     color: #1e3a5f;
     border-bottom: 2px solid #3b82f6;
+    display: flex;
+    align-items: center;
 }
 .pt-row {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    padding: 10px 8px;
+    padding: 12px 12px;
     border-bottom: 1px solid #e2e8f0;
-    gap: 8px;
-}
-.pt-row:last-child {
-    border-bottom: none;
+    gap: 12px;
+    background: #ffffff;
 }
 .pt-row:hover {
     background: #f8fafc;
 }
+.pt-row:last-child {
+    border-bottom: none;
+}
 .pt-col {
     flex: 1;
     text-align: center;
-    padding: 4px;
 }
 .pt-col:first-child {
     text-align: left;
@@ -86,10 +87,12 @@ st.markdown("""
 .pt-label {
     font-size: 10px;
     color: #64748b;
-    margin-top: 2px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
 }
 .pt-value {
-    font-size: 13px;
+    font-size: 14px;
     color: #1e293b;
     font-weight: 500;
 }
@@ -97,19 +100,41 @@ st.markdown("""
     color: #3b82f6;
     font-weight: 600;
 }
+.pt-input-container {
+    width: 100%;
+}
+.pt-input-container label {
+    display: none !important;
+}
+.pt-input-container input {
+    width: 100%;
+    text-align: center;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 8px 4px;
+    font-size: 13px;
+    background: #f8fafc;
+}
+.pt-input-container input:focus {
+    border-color: #3b82f6;
+    outline: none;
+    background: #ffffff;
+}
 
 /* Metric boxes - pastelowe */
 [data-testid="stMetric"] {
     background: #ffffff !important;
     border: 1px solid #e2e8f0 !important;
     border-radius: 8px !important;
-    padding: 12px !important;
+    padding: 16px !important;
 }
 [data-testid="stMetricLabel"] {
     color: #64748b !important;
+    font-size: 13px !important;
 }
 [data-testid="stMetricValue"] {
     color: #1e3a5f !important;
+    font-size: 24px !important;
 }
 [data-testid="stMetricDelta"] {
     color: #10b981 !important;
@@ -126,6 +151,8 @@ st.markdown("""
     color: white !important;
     border: none !important;
     border-radius: 6px !important;
+    padding: 10px 20px !important;
+    font-weight: 500 !important;
 }
 .stButton > button:hover {
     background: #2563eb !important;
@@ -135,11 +162,13 @@ st.markdown("""
 .stTabs [data-baseweb="tab-list"] {
     background: #f1f5f9;
     border-radius: 8px 8px 0 0;
+    gap: 4px;
 }
 .stTabs [data-baseweb="tab"] {
     background: #e2e8f0;
     color: #64748b;
     border-radius: 6px 6px 0 0;
+    padding: 10px 16px !important;
 }
 .stTabs [aria-selected="true"] {
     background: #ffffff !important;
@@ -147,19 +176,40 @@ st.markdown("""
     font-weight: 600;
 }
 
-/* Exchange selector */
+/* Exchange selector badges */
 .exchange-badge {
     display: inline-block;
-    padding: 4px 12px;
+    padding: 6px 14px;
     border-radius: 20px;
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 600;
-    margin: 2px;
+    margin: 4px 2px;
 }
 .exchange-wig20 { background: #dbeafe; color: #1e40af; }
 .exchange-wig40 { background: #dcfce7; color: #166534; }
 .exchange-wig80 { background: #fef3c7; color: #92400e; }
 .exchange-ibkr { background: #e0e7ff; color: #4338ca; }
+
+/* Tooltip info box */
+.tooltip-info {
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 6px;
+    padding: 10px 14px;
+    margin: 10px 0;
+    font-size: 12px;
+    color: #1e40af;
+}
+
+/* Section headers */
+.section-header {
+    color: #1e3a5f;
+    font-size: 18px;
+    font-weight: 600;
+    margin: 20px 0 12px 0;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #e2e8f0;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -176,7 +226,7 @@ INDICATOR_HELP = {
     "Quick Ratio (Q)": "Płynność szybka. >1 = zdolność do spłaty zobowiązań",
     "Debt/Assets (Q)": "Zadłużenie/Aktywa. <0.5 = bezpieczny poziom",
     "Signal Score": "Wynik AI (0-1). BUY≥0.6, HOLD 0.3-0.6, SELL≤0.3",
-    "Signal": "Sygnał: 🟢BUY 🟡HOLD 🔴SELL",
+    "Signal": "Sygnał: 🟢BUY HOLD 🔴SELL",
     "Cena": "Cena pojedynczej akcji",
     "% Model": "Procent alokacji wg modelu AI",
     "Ilość (ułamkowa)": "Sugerowana ilość akcji z modelu",
@@ -266,15 +316,15 @@ if "exchange" not in st.session_state:
 st.set_page_config(page_title="🤖 AI Giełda Agent", layout="wide", page_icon="📈")
 
 # Header
-st.markdown("<h1 style='color: #1e3a5f; font-size: 28px;'>🤖 AI Giełda Agent</h1>", unsafe_allow_html=True)
-st.markdown("<p style='color: #64748b; font-size: 14px;'>Paper Trading | GPW & IBKR | Rebalans | Sygnały BUY/HOLD/SELL</p>", unsafe_allow_html=True)
+st.markdown("<h1 style='color: #1e3a5f; font-size: 28px; margin-bottom: 8px;'>🤖 AI Giełda Agent</h1>", unsafe_allow_html=True)
+st.markdown("<p style='color: #64748b; font-size: 14px; margin-bottom: 20px;'>Paper Trading | GPW & IBKR | Rebalans | Sygnały BUY/HOLD/SELL</p>", unsafe_allow_html=True)
 
 # SIDEBAR
 with st.sidebar:
-    st.markdown("<h3 style='color: #1e3a5f;'>⚙️ Konfiguracja</h3>", unsafe_allow_html=True)
+    st.markdown("<h3 style='color: #1e3a5f; margin-bottom: 16px;'>⚙️ Konfiguracja</h3>", unsafe_allow_html=True)
     
     # ✅ WYBÓR GIEŁDY
-    st.markdown("<p style='color: #64748b; font-size: 12px; font-weight: 600;'>📍 Giełda / Indeks</p>", unsafe_allow_html=True)
+    st.markdown("<p style='color: #64748b; font-size: 12px; font-weight: 600; margin-bottom: 8px;'>📍 Giełda / Indeks</p>", unsafe_allow_html=True)
     exchange = st.selectbox(
         "Wybierz indeks",
         ["WIG20", "WIG40", "WIG80", "IBKR"],
@@ -290,7 +340,7 @@ with st.sidebar:
     st.divider()
     
     # Tryb tradingu
-    st.markdown("<p style='color: #64748b; font-size: 12px; font-weight: 600;'>🎯 Strategia</p>", unsafe_allow_html=True)
+    st.markdown("<p style='color: #64748b; font-size: 12px; font-weight: 600; margin-bottom: 8px;'>🎯 Strategia</p>", unsafe_allow_html=True)
     trade_mode = st.radio(
         "Tryb",
         ["Daily Trade", "Monthly Trade"],
@@ -301,7 +351,7 @@ with st.sidebar:
     
     badge_text = "Day Trade" if st.session_state.trade_mode == "daily" else "Swing/Monthly"
     badge_color = "#ef4444" if st.session_state.trade_mode == "daily" else "#10b981"
-    st.markdown(f'<span style="background: {badge_color}; color: white; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 600;">🔴 {badge_text}</span>', unsafe_allow_html=True)
+    st.markdown(f'<span style="background: {badge_color}; color: white; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 600; display: inline-block; margin-top: 8px;">🔴 {badge_text}</span>', unsafe_allow_html=True)
     
     st.divider()
     
@@ -328,8 +378,24 @@ with st.sidebar:
 # Generuj dane dla wybranego indeksu
 tickers = INDEX_TICKERS[st.session_state.exchange]
 df_all = generate_mock_data(tickers, st.session_state.trade_mode)
-cols_display = ["Ticker", "Price", "Target Price", "Upside %", "Market Cap", "Dividend Yield", 
-                "PE Ratio", "PEG Ratio", "Quick Ratio (Q)", "Debt/Assets (Q)", "Signal", "Signal Score"]
+
+# Kolumny z help dla tooltipów
+cols_with_help = [
+    ("Ticker", INDICATOR_HELP["Ticker"]),
+    ("Price", INDICATOR_HELP["Price"]),
+    ("Target Price", INDICATOR_HELP["Target Price"]),
+    ("Upside %", INDICATOR_HELP["Upside %"]),
+    ("Market Cap", INDICATOR_HELP["Market Cap"]),
+    ("Dividend Yield", INDICATOR_HELP["Dividend Yield"]),
+    ("PE Ratio", INDICATOR_HELP["PE Ratio"]),
+    ("PEG Ratio", INDICATOR_HELP["PEG Ratio"]),
+    ("Quick Ratio (Q)", INDICATOR_HELP["Quick Ratio (Q)"]),
+    ("Debt/Assets (Q)", INDICATOR_HELP["Debt/Assets (Q)"]),
+    ("Signal", INDICATOR_HELP["Signal"]),
+    ("Signal Score", INDICATOR_HELP["Signal Score"])
+]
+
+cols_display = [col[0] for col in cols_with_help]
 
 # 📊 ZAKŁADKI
 tab1, tab2, tab3, tab4 = st.tabs(["📊 Dashboard", "🔍 Skaner", "📈 Sygnały", "💼 Paper Trading"])
@@ -337,7 +403,7 @@ tab1, tab2, tab3, tab4 = st.tabs(["📊 Dashboard", "🔍 Skaner", "📈 Sygnał
 # TAB 1: DASHBOARD
 with tab1:
     mode_label = "Day Trade" if st.session_state.trade_mode == "daily" else "Swing/Monthly"
-    st.markdown(f"<h3 style='color: #1e3a5f;'>📊 Dashboard — {mode_label} | {st.session_state.exchange}</h3>", unsafe_allow_html=True)
+    st.markdown(f"<h3 class='section-header'>📊 Dashboard — {mode_label} | {st.session_state.exchange}</h3>", unsafe_allow_html=True)
     
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("📈 Aktywa w portfelu", "20/30")
@@ -355,10 +421,17 @@ with tab1:
         "Market Cap": lambda x: format_currency(x, st.session_state.currency), 
         "Signal Score": "{:.2f}"
     }), use_container_width=True, hide_index=True)
+    
+    # ✅ Tooltip info box
+    st.markdown("""
+    <div class="tooltip-info">
+        💡 <b>Wskazówka:</b> Najedź kursorem na nagłówek kolumny w tabeli, aby zobaczyć opis wskaźnika
+    </div>
+    """, unsafe_allow_html=True)
 
 # TAB 2: SKANER
 with tab2:
-    st.markdown("<h3 style='color: #1e3a5f;'>🔍 Zaawansowany Skaner</h3>", unsafe_allow_html=True)
+    st.markdown("<h3 class='section-header'>🔍 Zaawansowany Skaner</h3>", unsafe_allow_html=True)
     colA, colB, colC = st.columns(3)
     with colA:
         pe_max = st.number_input("Max P/E", 5, 50, 25)
@@ -392,7 +465,7 @@ with tab2:
 # TAB 3: SYGNAŁY
 with tab3:
     mode_label = "Day Trade" if st.session_state.trade_mode == "daily" else "Swing/Monthly"
-    st.markdown(f"<h3 style='color: #1e3a5f;'>🎯 Lista Sygnałów — {mode_label}</h3>", unsafe_allow_html=True)
+    st.markdown(f"<h3 class='section-header'>🎯 Lista Sygnałów — {mode_label}</h3>", unsafe_allow_html=True)
     
     sig_filter = st.radio("Filtr sygnałów", ["Wszystkie", "🟢 BUY", "🟡 HOLD", "🔴 SELL"], horizontal=True)
     df_sig = df_all[df_all["Signal"] == sig_filter] if sig_filter != "Wszystkie" else df_all
@@ -404,18 +477,16 @@ with tab3:
         "Market Cap": lambda x: format_currency(x, st.session_state.currency), 
         "Signal Score": "{:.2f}"
     }), use_container_width=True, hide_index=True)
-    
-    st.caption("💡 Najedź na nagłówek kolumny, aby zobaczyć opis wskaźnika")
 
-# TAB 4: PAPER TRADING - CZYTELNY LAYOUT
+# TAB 4: PAPER TRADING - CZYTELNY LAYOUT Z INPUTAMI
 with tab4:
     mode_label = "Day Trade" if st.session_state.trade_mode == "daily" else "Swing/Monthly"
-    st.markdown(f"<h3 style='color: #1e3a5f;'>💼 Panel Paper Trading — {mode_label} | {st.session_state.exchange}</h3>", unsafe_allow_html=True)
+    st.markdown(f"<h3 class='section-header'>💼 Panel Paper Trading — {mode_label} | {st.session_state.exchange}</h3>", unsafe_allow_html=True)
     
     col_left, col_right = st.columns([1, 2])
     
     with col_left:
-        st.markdown(f"<p style='color: #64748b; font-size: 12px;'>💰 Dostępny Kapitał</p>", unsafe_allow_html=True)
+        st.markdown("<p style='color: #64748b; font-size: 12px;'>💰 Dostępny Kapitał</p>", unsafe_allow_html=True)
         st.markdown(f"<h2 style='color: #1e3a5f; margin: 8px 0;'>{format_currency(st.session_state.paper_capital, st.session_state.currency)}</h2>", unsafe_allow_html=True)
         
         alloc_method = st.radio("Metoda alokacji", ["Wg wartości (%)", "Wg ilości akcji"])
@@ -429,9 +500,9 @@ with tab4:
             alloc_data = []
             df_tickers = df_all[df_all["Ticker"].isin(tickers_list)]
             
-            # Nagłówek tabeli
+            # ✅ NAGŁÓWEK TABELI
             st.markdown("""
-            <div class="pt-header" style="display: flex; gap: 8px; padding: 12px 8px;">
+            <div class="pt-header">
                 <div class="pt-col" style="text-align:left; flex:1.5;">Ticker</div>
                 <div class="pt-col">Cena</div>
                 <div class="pt-col">Model %</div>
@@ -464,7 +535,7 @@ with tab4:
                 )
                 real_value = real_qty * row["Price"]
                 
-                # Wiersz tabeli - czytelny layout
+                # ✅ SPÓJNY WIERZ Z INPUTAMI W LINII
                 st.markdown(f"""
                 <div class="pt-row">
                     <div class="pt-col" style="text-align:left; flex:1.5;">{row['Ticker']}</div>
