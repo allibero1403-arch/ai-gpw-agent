@@ -1,0 +1,25 @@
+portfolio:
+  max_assets: 30
+  rebalance_days: 30
+  daily_trade_limit: 5
+  risk_per_trade: 0.02
+
+weights:
+  technical: 0.30
+  fundamental: 0.35
+  sentiment: 0.15
+  analyst: 0.20
+
+screener:
+  excludes:
+    countries: ["RU", "BY"]
+    sectors: ["Energy", "Utilities", "Real Estate"]
+  filters:
+    market_cap_min: 500000000
+    pe_ratio: {min: 5, max: 30}
+    quick_ratio: {min: 1.0}
+    debt_to_assets: {max: 0.6}
+
+markets:
+  indices: ["WIG20", "WIG40", "WIG80"]
+  exchange: "WAR"
