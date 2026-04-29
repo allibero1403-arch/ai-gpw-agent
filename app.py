@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 from datetime import datetime
 
-# 🎨 STYLIZACJA CSS: Tooltips + Wyśrodkowanie tabel
+# 🎨 STYLIZACJA CSS: Tooltips + Wyśrodkowanie tabel + Sidebar
 st.markdown("""
 <style>
 .tooltip-wrap { 
@@ -32,7 +32,7 @@ st.markdown("""
     color: #f8fafc;
     text-align: left; 
     border-radius: 8px; 
-    padding: 8px 12px; 
+    padding: 8极 12px; 
     position: absolute;
     z-index: 100; 
     bottom: 110%; 
@@ -49,6 +49,7 @@ st.markdown("""
     opacity: 1; 
     bottom: 100%; 
 }
+
 /* Wyrównanie tabeli: środek dla wszystkich kolumn poza pierwszą */
 .stDataFrame table th:not(:first-child), 
 .stDataFrame table td:not(:first-child),
@@ -62,6 +63,7 @@ st.markdown("""
 [data-testid="stTable"] td:first-child { 
     text-align: left !important; 
 }
+
 /* Styl dla sidebar hint */
 .sidebar-hint {
     background: #1e293b;
@@ -75,6 +77,22 @@ st.markdown("""
     font-weight: bold;
     margin-bottom: 8px;
     color: #3b82f6;
+}
+
+/* Styl dla etykiet trybu */
+.mode-badge {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: bold;
+}
+.mode-daily {
+    background: #ef4444;
+    color: white;
+}
+.mode-monthly {
+    background: #10b981;
+    color: white;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -91,10 +109,10 @@ INDICATOR_DESC = {
     "EPS Long-Term (5Y)": "Długoterminowy szacowany wzrost EPS (5 lat)",
     "PS Ratio": "Cena / Przychody. Niższy = potencjalnie tańszy",
     "PE Ratio": "Cena / Zysk. <15 często uznawane za atrakcyjne",
-    "PEG Ratio": "极 / Wzrost zysków. <1 sugeruje niedowycenienie względem wzrostu",
+    "PEG Ratio": "PE / Wzrost zysków. <1 sugeruje niedowycenienie względem wzrostu",
     "Revenue (TTM)": "Przychody z ostatnich 12 miesięcy",
-    "Free Cash Flow极 (TTM)": "Gotówka po odliczeniu nakładów inwestycyjnych (12m)",
-    "Net Income (TTM)": "Zysk netto spółki (12m)",
+    "Free Cash Flow (TTM)": "Gotówka po odliczeniu nakładów inwestycyjnych (12m)",
+    "Net Income (TTM极": "Zysk netto spółki (12m)",
     "Debt/Assets (Q)": "Udział zadłużenia w aktywach (kwartalnie). <0.5 = bezpiecznie",
     "Quick Ratio (Q)": "Płynność szybka. >1 oznacza zdolność do spłaty krótkich zobowiązań",
     "Signal Score": "Wynik kompozytowy 0-1: BUY≥0.6, HOLD 0.3-0.6, SELL≤0.3",
@@ -133,24 +151,28 @@ def generate_mock_data(trade_mode="daily"):
             volatility = np.random.uniform(0.01, 0.04)
             
         data.append({
-            "Ticker": t, "Price": price, "Target Price": target, "Upside %": np.round((target/price - 1)*100, 2),
+            "Ticker": t, 
+            "Price": price, 
+            "Target Price": target, 
+            "Upside %": np.round((target/price - 1)*100, 2),
             "Market Cap": np.random.randint(2e9, 40e9),
             "Dividend Yield": np.round(np.random.uniform(0, 12), 2),
-            "Revenue Est. Growth (2极)": np.round(np.random.uniform(-2, 20), 2),
+            "Revenue Est. Growth (2Y)": np.round(np.random.uniform(-2, 20), 2),
             "EPS Est. Growth (2Y)": np.round(np.random.uniform(-3, 25), 2),
             "EPS Long-Term (5Y)": np.round(np.random.uniform(0, 18), 2),
-            "PS Ratio": np.round(np.random.uniform(0.8, 6.0), 2),
+            "PS Ratio": np.round(np极dom.uniform(0.8, 6.0), 2),
             "PE Ratio": np.round(np.random.uniform(6, 30), 2),
             "PEG Ratio": np.round(np.random.uniform(0.6, 2.8), 2),
-            "Revenue (TTM)": np.random.randint(500e6极, 25e9),
+            "Revenue (TTM)": np.random.randint(500e6, 25e9),
             "Free Cash Flow (TTM)": np.random.randint(-200e6, 4e9),
-            "Net Income (TTM)": np极.random.randint(-100e6, 3e9),
+            "Net Income (TTM)": np.random.randint(-100e6, 3e9),
             "Debt/Assets (Q)": np.round(np.random.uniform(0.15, 0.75), 2),
             "Quick Ratio (Q)": np.round(np.random.uniform(0.4, 3.2), 2),
             "Analyst Rating": np.random.choice(["Strong Buy", "Buy", "Hold", "Sell"], p=[0.15, 0.35, 0.4, 0.1]),
             "Sentiment": sentiment,
             "Volatility": volatility
         })
+    
     df = pd.DataFrame(data)
     
     # Oblicz Score zależnie od trybu
@@ -161,7 +183,7 @@ def generate_mock_data(trade_mode="daily"):
             (df["PEG Ratio"] < 1.0)*0.2 + 
             (df["Dividend Yield"] > 2)*0.1 +
             (df["Quick Ratio (Q)"] > 0.8)*0.15 + 
-            (df["Upside %"] > 8)*0.25 + 
+            (df["Upside %"] > 8)*极.25 + 
             (df["Sentiment"] > 0.4)*0.15
         )
     else:
@@ -180,7 +202,7 @@ def generate_mock_data(trade_mode="daily"):
 
 # 💾 STAN APLIKACJI
 if "paper_capital" not in st.session_state: 
-    st.session_state.paper_capital = 100_000.0
+    st.session_state.paper_capital = 100000.0
 if "portfolio_alloc" not in st.session_state: 
     st.session_state.portfolio_alloc = pd.DataFrame()
 if "currency" not in st.session_state: 
@@ -193,27 +215,34 @@ st.set_page_config(page_title="🤖 AI Giełda Agent", layout="wide", page_icon=
 st.title("🤖 AI Giełda Agent")
 st.markdown("*Paper Trading | GPW & IBKR | Rebalans | Sygnały BUY/HOLD/SELL*")
 
-# Sidebar
+# SIDEBAR
 with st.sidebar:
     st.header("⚙️ Konfiguracja")
     
     # Wybór trybu tradingu
-    trade_mode = st.radio("Tryb tradingu", ["Dzienny", "Miesięczny"], 
+    trade_mode = st.radio("🎯 Strategia Agenta", ["Daily Trade", "Monthly Trade"], 
                          index=0 if st.session_state.trade_mode == "daily" else 1)
-    st.session_state.trade_mode = "daily" if trade_mode == "Dzienny" else "monthly"
+    st.session_state.trade_mode = "daily" if trade_mode == "Daily Trade" else "monthly"
     
-    curr = st.selectbox("Waluta raportowania", ["PLN", "USD"], index=0)
+    # Badge trybu
+    badge_class = "mode-daily" if st.session_state.trade_mode == "daily" else "mode-monthly"
+    badge_text = "Day Trade" if st.session_state.trade_mode == "daily" else "Swing/Monthly"
+    st.markdown(f'<span class="mode-badge {badge_class}">🔴 {badge_text}</span>', unsafe_allow_html=True)
+    
+    curr = st.selectbox("💱 Waluta raportowania", ["PLN", "USD"], index=0)
     st.session_state.currency = curr
     
-    capital = st.number_input("💰 Kapitał startowy (Paper Trade)", min_value=1_000.0, value=100_000.0, step=5_000.0)
+    capital = st.number_input("💰 Kapitał startowy", min_value=1000.0, value=100000.0, step=5000.0)
     st.session_state.paper_capital = capital
     
     st.divider()
     
     # Hint w formie podobnej do reszty UI
-    st.markdown("""
+    mode_hint = "Szybkie momentum, analiza sentymentu i krótkoterminowy Upside" if st.session_state.trade_mode == "daily" else "Analiza wartości, dywidendy i stabilność finansowa"
+    st.markdown(f"""
     <div class="sidebar-hint">
-        <div class="sidebar-hint-title">📊 Wskaźniki</div>
+        <div class="sidebar-hint-title">📖 Strategia: {badge_text}</div>
+        <div>{mode_hint}</div>
         <div>PE<15 = tanio | DY>3% = dywidenda</div>
         <div>Quick>1 = płynność | Upside>10% = potencjał</div>
     </div>
@@ -229,6 +258,9 @@ tab1, tab2, tab3, tab4 = st.tabs(["📊 Dashboard", "🔍 Skaner", "📈 Sygnał
 
 # TAB 1: DASHBOARD
 with tab1:
+    mode_label = "Day Trade" if st.session_state.trade_mode == "daily" else "Swing/Monthly"
+    st.subheader(f"📊 Dashboard — {mode_label}")
+    
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("📈 Aktywa w portfelu", "20/30")
     c2.metric("🟢 Sygnały BUY", f"{len(df_all[df_all['Signal']=='🟢 BUY'])}")
@@ -250,8 +282,11 @@ with tab1:
     """, unsafe_allow_html=True)
     
     st.dataframe(movers[cols_display].style.format({
-        "Price": f"{{:,.2f}} {curr}", "Target Price": f"{{:,.极f}} {curr}", "Upside %": "{:.2f}%",
-        "Market Cap": lambda x: format_currency(x, curr), "Signal Score": "{:.2f}"
+        "Price": f"{{:,.2f}} {st.session_state.currency}", 
+        "Target Price": f"{{:,.2极}} {st.session_state.currency}", 
+        "Upside %": "{:.2f}%",
+        "Market Cap": lambda x: format_currency(x, st.session_state.currency), 
+        "Signal Score": "{:.2f}"
     }), use_container_width=True, hide_index=True)
 
 # TAB 2: SKANER
@@ -265,14 +300,17 @@ with tab2:
         upside_min = st.number_input("Min Upside %", -10.0, 50.0, 5.0)
         quick_min = st.number_input("Min Quick Ratio", 0.5, 5.0, 1.0)
     with colC:
-        debt_max = st.number_input("Max Debt/Assets", 极.1, 1.0, 0.5)
+        debt_max = st.number_input("Max Debt/Assets", 0.1, 1.0, 0.5)
         cap_min = st.number_input("Min Market Cap (mld)", 0.1, 50.0, 1.0)
     
     if st.button("🔎 Szukaj", type="primary"):
         filt = df_all[
-            (df_all["PE Ratio"] <= pe_max) & (df_all["Dividend Yield"] >= dy_min) &
-            (df_all["Upside %"] >= upside_min) & (df_all["Quick Ratio (Q)"] >= quick_min) &
-            (df_all["Debt/Assets (Q)"] <= debt_max) & (df_all["Market Cap"] >= cap_min*1e9)
+            (df_all["PE Ratio"] <= pe_max) & 
+            (df_all["Dividend Yield"] >= dy_min) &
+            (df_all["Upside %"] >= upside_min) & 
+            (df_all["Quick Ratio (Q)"] >= quick_min) &
+            (df_all["Debt/Assets (Q)"] <= debt_max) & 
+            (df_all["Market Cap"] >= cap_min*1e9)
         ]
         st.success(f"Znaleziono {len(filt)} spółek")
         
@@ -287,14 +325,19 @@ with tab2:
         </table>
         """, unsafe_allow_html=True)
         
-        st.dataframe(filt[cols_display].style.format({
-            "Price": f"{{:,.2f}} {curr}", "Target Price": f"{{:,.2f}} {curr}", "Upside %": "{:.2f}%",
-            "Market Cap": lambda x: format_currency(x, curr), "Signal Score": "{:.2f}"
+        st.dataframe(filt[cols极isplay].style.format({
+            "Price": f"{{:,.2f}} {st.session_state.currency}", 
+            "Target Price": f"{{:,.2f}} {st.session_state.currency}", 
+            "Upside %": "{:.2f}%",
+            "Market Cap": lambda x: format_currency(x, st.session_state.currency), 
+            "Signal Score": "{:.2f}"
         }), use_container_width=True, hide_index=True)
 
 # TAB 3: SYGNAŁY
 with tab3:
-    st.subheader("🎯 Dzienna Lista Sygnałów")
+    mode_label = "Day Trade" if st.session_state.trade_mode == "daily" else "Swing/Monthly"
+    st.subheader(f"🎯 Lista Sygnałów — {mode_label}")
+    
     sig_filter = st.radio("Filtr sygnałów", ["Wszystkie", "🟢 BUY", "🟡 HOLD", "🔴 SELL"], horizontal=True)
     df_sig = df_all[df_all["Signal"] == sig_filter] if sig_filter != "Wszystkie" else df_all
     
@@ -310,21 +353,27 @@ with tab3:
     """, unsafe_allow_html=True)
     
     st.dataframe(df_sig[cols_display].style.format({
-        "Price": f"{{:,.2f}} {curr}", "Target Price": f"{{:,.2f}} {curr}", "Upside %": "{:.2f}%",
-        "Market Cap": lambda x: format_currency(x, curr), "Signal Score": "{:.2f}"
+        "Price": f"{{:,.2f}} {st.session_state.currency}", 
+        "Target Price": f"{{:,.2f}} {st.session_state.currency}", 
+        "Upside %": "{:.2f}%",
+        "Market Cap": lambda x: format_currency(x, st.session_state.currency), 
+        "Signal Score": "{:.2f}"
     }), use_container_width=True, hide_index=True)
 
 # TAB 4: PAPER TRADING
 with tab4:
-    st.subheader("💼 Panel Paper Trading")
-    c1, c2 = st.columns([1, 2])
-    with c1:
-        st.metric("💰 Dostępny Kapitał", format_currency(st.session_state.paper_capital, curr))
+    mode_label = "Day Trade" if st.session_state.trade_mode == "daily" else "Swing/Monthly"
+    st.subheader(f"💼 Panel Paper Trading — {mode_label}")
+    
+    col_left, col_right = st.columns([1, 2])
+    
+    with col_left:
+        st.metric("💰 Dostępny Kapitał", format_currency(st.session_state.paper_capital, st.session_state.currency))
         alloc_method = st.radio("Metoda alokacji", ["Wg wartości (%)", "Wg ilości akcji"])
         tickers_list = st.multiselect("Wybór walorów", df_all["Ticker"].tolist(), default=df_all["Ticker"].tolist()[:5])
         
-    with c2:
-        st.markdown("📝 Konfiguracja pozycji (obsługa ułamków)")
+    with col_right:
+        st.markdown("📝 Konfiguracja pozycji: **Model AI vs Realny Portfel**")
         if tickers_list:
             alloc_data = []
             df_tickers = df_all[df_all["Ticker"].isin(tickers_list)]
@@ -332,58 +381,76 @@ with tab4:
             for idx, row in df_tickers.iterrows():
                 cA, cB, cC, cD = st.columns([3, 2, 2, 2])
                 with cA:
-                    st.markdown(f"**{row['Ticker']}** | Cena: {row['Price']:,.2f} {curr} | Upside: {row['Upside %']:.1f}%")
+                    st.markdown(f"**{row['Ticker']}**")
                 with cB:
                     if alloc_method == "Wg wartości (%)":
-                        pct = st.number_input(f"% alokacji", 0.0, 100.0, 5.0, step=1.0, key=f"pct_{row['Ticker']}")
-                        value = (pct/100) * st.session_state.paper_capital
-                        qty = value / row["Price"]
+                        pct = st.number_input(f"Model %", 0.0, 100.0, 5.0, step=1.0, key=f"pct_{row['Ticker']}")
+                        model_value = (pct/100) * st.session_state.paper_capital
+                        model_qty = model_value / row["Price"]
                     else:
-                        qty = st.number_input(f"Ilość akcji", 0.0, 10000.0, 10.0, step=0.5, key=f"qty_{row['Ticker']}")
-                        value = qty * row["Price"]
-                        pct = (value / st.session_state.paper_capital) * 100
+                        model_qty = st.number_input(f"Model Ilość", 0.0, 10000.0, 10.0, step=0.5, key=f"qty_{row['Ticker']}")
+                        model_value = model_qty * row["Price"]
+                        pct = (model_value / st.session_state.paper_capital) * 100
                 with cC:
-                    # FAKTYCZNY PORTFEL - użytkownik wprowadza rzeczywistą ilość
-                    real_qty = st.number_input(f"Faktyczny portfel", 0.0, 10000.0, round(qty), step=1.0, key=f"real_{row['Ticker']}")
+                    # FAKTYCZNY PORTFEL - użytkownik wprowadza rzeczywistą liczbę akcji
+                    real_qty = st.number_input(f"Real Ilość", 0.0, 10000.0, round(model_qty), step=1.0, key=f"real_{row['Ticker']}")
                     real_value = real_qty * row["Price"]
                 with cD:
-                    st.metric(f"Wartość realna", format_currency(real_value, curr))
+                    st.metric("Real Value", format_currency(real_value, st.session_state.currency))
                 
                 alloc_data.append({
                     "Ticker": row["Ticker"], 
                     "Price": row["Price"], 
-                    "%": pct, 
-                    "Ilość (ułamkowa)": qty, 
-                    "Faktyczny portfel": real_qty,
-                    "Wartość pozycji": value,
-                    "Wartość realna": real_value
+                    "% Model": pct, 
+                    "Ilość (ułamkowa)": model_qty, 
+                    "Faktyczny portfel": real_qty, 
+                    "Wartość Realna": real_value
                 })
             
             df_alloc = pd.DataFrame(alloc_data)
-            total_alloc = df_alloc["Wartość realna"].sum()
-            remaining = st.session_state.paper_capital - total_alloc
+            total_real_alloc = df_alloc["Wartość Realna"].sum()
+            remaining = st.session_state.paper_capital - total_real_alloc
+            
+            # Wyświetl tabelę z odpowiednim wyrównaniem
+            display_cols = ["Ticker", "Price", "% Model", "Ilość (ułamkowa)", "Faktyczny portfel", "Wartość Realna"]
+            st.dataframe(
+                df_alloc[display_cols].style.format({
+                    "Price": f"{{:,.2f}} {st.session_state.currency}", 
+                    "Ilość (ułamkowa)": "{:.4f}", 
+                    "Faktyczny portfel": "{:.2f}",
+                    "Wartość Realna": f"{{:,.2f}} {st.session_state.currency}", 
+                    "% Model": "{:.2f}%"
+                }), 
+                use_container_width=True, 
+                hide_index=True
+            )
             
             st.divider()
-            cR1, cR2, cR3 = st.columns(3)
-            cR1.metric("📊 Zaalokowano", format_currency(total_alloc, curr))
-            cR2.metric("💵 Gotówka", format_currency(remaining, curr), delta=f"{(remaining/st.session_state.paper_capital)*100:.1f}%")
-            cR3.metric("⚠️ Nadpłynięcie", "TAK" if remaining < 0 else "NIE", delta=f"{remaining:,.0f} {curr}")
+            
+            # Podsumowanie alokacji
+            cR1, cR2, cR3, cR4 = st.columns(4)
+            cR1.metric("📊 Zaalokowano (Real)", format_currency(total_real_alloc, st.session_state.currency))
+            cR2.metric("💵 Gotówka", format_currency(remaining, st.session_state.currency), 
+                       delta=f"{(remaining/st.session_state.paper_capital)*100:.1f}%")
+            cR3.metric("📊 Zaalokowano (Model)", format_currency(df_alloc["Ilość (ułamkowa)"].sum() * df_alloc["Price"].mean(), st.session_state.currency))
+            cR4.metric("⚠️ Nadpłynięcie", "TAK" if remaining < 0 else "NIE", 
+                       delta=f"{remaining:,.0f} {st.session_state.currency}")
             
             if st.button("💾 Zatwierdź portfel", type="primary"):
                 st.session_state.portfolio_alloc = df_alloc
                 st.session_state.portfolio_alloc["Data dodania"] = datetime.now().strftime("%Y-%m-%d")
-                st.success("✅ Portfel zapisany w sesji! Możesz teraz śledzić P&L w dashboardzie.")
+                st.success("✅ Portfel zapisany! Śledź P&L w dashboardzie.")
             
-            # Kolumny do wyświetlenia z odpowiednim wyrównaniem
-            display_cols = ["Ticker", "Price", "%", "Ilość (ułamkowa)", "Faktyczny portfel", "Wartość realna"]
-            st.dataframe(df_alloc[display_cols].style.format({
-                "Price": f"{{:,.2f}} {curr}", 
-                "Ilość (ułamkowa)": "{:.4f}", 
-                "Faktyczny portfel": "{:.0f}",
-                "Wartość realna": f"{{:,.2f}} {curr}", 
-                "%": "{:.2f}%"
-            }), use_container_width=True, hide_index=True)
+            # Eksport do CSV
+            if not df_alloc.empty:
+                csv = df_alloc.to_csv(index=False).encode('utf-8')
+                st.download_button(
+                    "📥 Eksportuj do CSV",
+                    csv,
+                    f"portfolio_{st.session_state.trade_mode}_{datetime.now().strftime('%Y%m%d')}.csv",
+                    "text/csv"
+                )
 
 # Stopka
 st.markdown("---")
-st.caption("🤖 AI Giełda Agent | Dane testowe (symulacja) | To narzędzie analityczne, nie doradztwo inwestycyjne")
+st.caption("🤖 AI Giełda Agent | System Hybrydowy (Model → Real) | Dane testowe (symulacja) | To narzędzie analityczne, nie doradztwo inwestycyjne")
