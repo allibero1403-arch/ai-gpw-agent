@@ -44,19 +44,13 @@ st.markdown("""
 }
 
 /* Paper Trading - czytelny layout */
-.pt-container {
-    background: #ffffff;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    overflow: hidden;
-    margin: 10px 0;
-}
 .pt-header {
     background: #f1f5f9;
     padding: 14px 12px;
     font-weight: 600;
     color: #1e3a5f;
     border-bottom: 2px solid #3b82f6;
+    border-radius: 8px 8px 0 0;
     display: flex;
     align-items: center;
 }
@@ -73,11 +67,12 @@ st.markdown("""
 }
 .pt-row:last-child {
     border-bottom: none;
+    border-radius: 0 0 8px 8px;
 }
 .pt-col {
     flex: 1;
     text-align: center;
-    min-width: 80px;
+    min-width: 70px;
 }
 .pt-col:first-child {
     text-align: left;
@@ -124,7 +119,7 @@ st.markdown("""
     background: #ffffff;
 }
 
-/* Metric boxes - pastelowe */
+/* Metric boxes */
 [data-testid="stMetric"] {
     background: #ffffff !important;
     border: 1px solid #e2e8f0 !important;
@@ -193,7 +188,7 @@ st.markdown("""
 .exchange-wig80 { background: #fef3c7; color: #92400e; }
 .exchange-ibkr { background: #e0e7ff; color: #4338ca; }
 
-/* Tooltip legend box */
+/* Tooltip legend box - wspólna dla wszystkich zakładek */
 .tooltip-legend {
     background: #eff6ff;
     border: 1px solid #bfdbfe;
@@ -257,7 +252,7 @@ INDICATOR_HELP = {
     "Quick Ratio (Q)": "Płynność szybka. >1 = zdolność do spłaty zobowiązań",
     "Debt/Assets (Q)": "Zadłużenie/Aktywa. <0.5 = bezpieczny poziom",
     "Signal Score": "Wynik AI (0-1). BUY≥0.6, HOLD 0.3-0.6, SELL≤0.3",
-    "Signal": "Sygnał: 🟢BUY 🟡HOLD 🔴SELL",
+    "Signal": "Sygnał: 🟢BUY HOLD 🔴SELL",
     "Cena": "Cena pojedynczej akcji",
     "% Model": "Procent alokacji wg modelu AI",
     "Ilość (ułamkowa)": "Sugerowana ilość akcji z modelu",
@@ -331,7 +326,7 @@ def generate_mock_data(tickers, trade_mode="daily"):
     df["Signal"] = df["Signal Score"].apply(lambda x: "🟢 BUY" if x >= 0.6 else ("🔴 SELL" if x <= 0.3 else "🟡 HOLD"))
     return df
 
-# 💾 STAN APLIKACJI
+# 💾 STAN APLIKACJI - z inicjalizacją
 if "paper_capital" not in st.session_state: 
     st.session_state.paper_capital = 100000.0
 if "portfolio_alloc" not in st.session_state: 
@@ -342,6 +337,8 @@ if "trade_mode" not in st.session_state:
     st.session_state.trade_mode = "daily"
 if "exchange" not in st.session_state:
     st.session_state.exchange = "WIG20"
+if "saved_portfolio_values" not in st.session_state:
+    st.session_state.saved_portfolio_values = {}
 
 # 🖥️ UI
 st.set_page_config(page_title="🤖 AI Giełda Agent", layout="wide", page_icon="📈")
@@ -409,15 +406,8 @@ df_all = generate_mock_data(tickers, st.session_state.trade_mode)
 cols_display = ["Ticker", "Price", "Target Price", "Upside %", "Market Cap", "Dividend Yield", 
                 "PE Ratio", "PEG Ratio", "Quick Ratio (Q)", "Debt/Assets (Q)", "Signal", "Signal Score"]
 
-# 📊 ZAKŁADKI
-tab1, tab2, tab3, tab4 = st.tabs(["📊 Dashboard", "🔍 Skaner", "📈 Sygnały", "💼 Paper Trading"])
-
-# TAB 1: DASHBOARD - TYLKO ZATWIERDZONE POZYCJE
-with tab1:
-    mode_label = "Day Trade" if st.session_state.trade_mode == "daily" else "Swing/Monthly"
-    st.markdown(f"<h3 class='section-header'>📊 Dashboard — {mode_label} | {st.session_state.exchange}</h3>", unsafe_allow_html=True)
-    
-    # ✅ LEGENDA WSKAŹNIKÓW (tooltipy)
+# ✅ FUNKCJA POMOCNICZA - LEGENDA TOOLTIPÓW (dla każdej zakładki)
+def display_tooltip_legend():
     st.markdown("""
     <div class="tooltip-legend">
         <div class="tooltip-legend-title">📖 Legenda wskaźników (najedź myszką)</div>
@@ -432,10 +422,20 @@ with tab1:
         </div>
     </div>
     """, unsafe_allow_html=True)
+
+# 📊 ZAKŁADKI
+tab1, tab2, tab3, tab4 = st.tabs(["📊 Dashboard", "🔍 Skaner", "📈 Sygnały", "💼 Paper Trading"])
+
+# TAB 1: DASHBOARD - TYLKO ZATWIERDZONE POZYCJE
+with tab1:
+    mode_label = "Day Trade" if st.session_state.trade_mode == "daily" else "Swing/Monthly"
+    st.markdown(f"<h3 class='section-header'>📊 Dashboard — {mode_label} | {st.session_state.exchange}</h3>", unsafe_allow_html=True)
+    
+    # ✅ TOOLTIPY W KAŻDEJ ZAKŁADCE
+    display_tooltip_legend()
     
     # ✅ SPRAWDŹ CZY SĄ ZATWIERDZONE POZYCJE
     if not st.session_state.portfolio_alloc.empty:
-        # Filtruj tylko zatwierdzone tickery
         approved_tickers = st.session_state.portfolio_alloc["Ticker"].tolist()
         df_portfolio = df_all[df_all["Ticker"].isin(approved_tickers)]
         
@@ -448,7 +448,6 @@ with tab1:
             
             st.markdown("<h4 style='color: #1e3a5f; margin-top: 24px;'>📦 Zatwierdzone Pozycje</h4>", unsafe_allow_html=True)
             
-            # Połącz z danymi z portfela
             df_display = df_portfolio.merge(
                 st.session_state.portfolio_alloc[["Ticker", "Faktyczny portfel", "Wartość Realna", "% Model"]],
                 on="Ticker",
@@ -470,6 +469,10 @@ with tab1:
 # TAB 2: SKANER
 with tab2:
     st.markdown("<h3 class='section-header'>🔍 Zaawansowany Skaner</h3>", unsafe_allow_html=True)
+    
+    # ✅ TOOLTIPY W KAŻDEJ ZAKŁADCE
+    display_tooltip_legend()
+    
     colA, colB, colC = st.columns(3)
     with colA:
         pe_max = st.number_input("Max P/E", 5, 50, 25)
@@ -505,6 +508,9 @@ with tab3:
     mode_label = "Day Trade" if st.session_state.trade_mode == "daily" else "Swing/Monthly"
     st.markdown(f"<h3 class='section-header'>🎯 Lista Sygnałów — {mode_label}</h3>", unsafe_allow_html=True)
     
+    # ✅ TOOLTIPY W KAŻDEJ ZAKŁADCE
+    display_tooltip_legend()
+    
     sig_filter = st.radio("Filtr sygnałów", ["Wszystkie", "🟢 BUY", "🟡 HOLD", "🔴 SELL"], horizontal=True)
     df_sig = df_all[df_all["Signal"] == sig_filter] if sig_filter != "Wszystkie" else df_all
     
@@ -516,7 +522,7 @@ with tab3:
         "Signal Score": "{:.2f}"
     }), use_container_width=True, hide_index=True)
 
-# TAB 4: PAPER TRADING - PODSUMOWANIE NA GÓRZE + 1 POZYCJA = 1 LINIA
+# TAB 4: PAPER TRADING
 with tab4:
     mode_label = "Day Trade" if st.session_state.trade_mode == "daily" else "Swing/Monthly"
     st.markdown(f"<h3 class='section-header'>💼 Panel Paper Trading — {mode_label} | {st.session_state.exchange}</h3>", unsafe_allow_html=True)
@@ -528,106 +534,76 @@ with tab4:
         st.markdown(f"<h2 style='color: #1e3a5f; margin: 8px 0;'>{format_currency(st.session_state.paper_capital, st.session_state.currency)}</h2>", unsafe_allow_html=True)
         
         alloc_method = st.radio("Metoda alokacji", ["Wg wartości (%)", "Wg ilości akcji"])
-        tickers_list = st.multiselect("Wybór walorów", df_all["Ticker"].tolist(), default=df_all["Ticker"].tolist()[:5])
+        
+        # ✅ DOMYŚLNIE WYBIERA ZATWIERDZONE POZYCJE
+        if not st.session_state.portfolio_alloc.empty:
+            default_tickers = st.session_state.portfolio_alloc["Ticker"].tolist()
+        else:
+            default_tickers = df_all["Ticker"].tolist()[:5]
+        
+        tickers_list = st.multiselect("Wybór walorów", df_all["Ticker"].tolist(), default=default_tickers)
         
     with col_right:
-        # ✅ PODSUMOWANIE NA GÓRZE
-        if tickers_list:
-            # Oblicz podsumowanie
-            total_model = 0
-            total_real = 0
-            for idx, row in df_all[df_all["Ticker"].isin(tickers_list)].iterrows():
-                pct_key = f"pct_{idx}_{row['Ticker']}"
-                qty_key = f"qty_{idx}_{row['Ticker']}"
-                real_key = f"real_{idx}_{row['Ticker']}"
-                
-                if alloc_method == "Wg wartości (%)":
-                    pct = st.session_state.get(pct_key, 5.0)
-                    model_value = (pct/100) * st.session_state.paper_capital
-                    model_qty = model_value / row["Price"]
-                else:
-                    model_qty = st.session_state.get(qty_key, 10.0)
-                    model_value = model_qty * row["Price"]
-                
-                real_qty = st.session_state.get(real_key, round(model_qty, 2))
-                real_value = real_qty * row["Price"]
-                
-                total_model += model_value
-                total_real += real_value
-            
-            remaining = st.session_state.paper_capital - total_real
-            
-            # ✅ SUMMARY BOX NA GÓRZE
-            st.markdown(f"""
-            <div class="summary-box">
-                <div style="display: flex; gap: 16px; flex-wrap: wrap;">
-                    <div style="flex: 1; min-width: 150px;">
-                        <div style="color: #64748b; font-size: 11px;">📊 Zaalokowano (Model)</div>
-                        <div style="color: #1e3a5f; font-size: 20px; font-weight: 600;">{format_currency(total_model, st.session_state.currency)}</div>
-                    </div>
-                    <div style="flex: 1; min-width: 150px;">
-                        <div style="color: #64748b; font-size: 11px;">📊 Zaalokowano (Real)</div>
-                        <div style="color: #1e3a5f; font-size: 20px; font-weight: 600;">{format_currency(total_real, st.session_state.currency)}</div>
-                    </div>
-                    <div style="flex: 1; min-width: 150px;">
-                        <div style="color: #64748b; font-size: 11px;">💵 Gotówka</div>
-                        <div style="color: #10b981; font-size: 20px; font-weight: 600;">{format_currency(remaining, st.session_state.currency)}</div>
-                        <div style="color: #10b981; font-size: 11px;">{((remaining/st.session_state.paper_capital)*100):.1f}% wolnych</div>
-                    </div>
-                    <div style="flex: 1; min-width: 150px;">
-                        <div style="color: #64748b; font-size: 11px;">⚠️ Nadpłynięcie</div>
-                        <div style="color: {'#ef4444' if remaining < 0 else '#10b981'}; font-size: 20px; font-weight: 600;">{'TAK' if remaining < 0 else 'NIE'}</div>
-                    </div>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        st.markdown("<p style='color: #64748b; font-size: 12px; margin-top: 16px;'>📝 Konfiguracja pozycji</p>", unsafe_allow_html=True)
+        st.markdown("<p style='color: #64748b; font-size: 12px;'>📝 Konfiguracja pozycji</p>", unsafe_allow_html=True)
         st.caption("💡 Ułamkowe części akcji dozwolone (2 miejsca po przecinku)")
         
         if tickers_list:
             alloc_data = []
             df_tickers = df_all[df_all["Ticker"].isin(tickers_list)]
             
-            # NAGŁÓWEK TABELI
-            st.markdown("""
-            <div class="pt-header">
-                <div class="pt-col" style="text-align:left; flex:1.5;">Ticker</div>
-                <div class="pt-col">Cena</div>
-                <div class="pt-col">Model %</div>
-                <div class="pt-col">Model (szt)</div>
-                <div class="pt-col">Faktyczny (szt)</div>
-                <div class="pt-col">Wartość</div>
-            </div>
-            """, unsafe_allow_html=True)
+            # Oblicz podsumowanie
+            total_model = 0
+            total_real = 0
             
             for idx, row in df_tickers.iterrows():
-                # Obliczenia
+                # ✅ ŁADOWANIE ZAPISANYCH WARTOŚCI
+                ticker_key = row['Ticker']
+                
                 if alloc_method == "Wg wartości (%)":
-                    pct = st.number_input("Model %", 0.0, 100.0, 5.0, step=1.0, key=f"pct_{idx}_{row['Ticker']}", label_visibility="collapsed")
+                    pct_key = f"pct_{idx}_{ticker_key}"
+                    # Sprawdź czy są zapisane wartości
+                    if ticker_key in st.session_state.saved_portfolio_values:
+                        default_pct = st.session_state.saved_portfolio_values[ticker_key].get('pct', 5.0)
+                    else:
+                        default_pct = 5.0
+                    pct = st.number_input("Model %", 0.0, 100.0, default_pct, step=1.0, key=pct_key, label_visibility="collapsed")
                     model_value = (pct/100) * st.session_state.paper_capital
                     model_qty = model_value / row["Price"]
                 else:
-                    model_qty = st.number_input("Model szt.", 0.0, 10000.0, 10.0, step=0.5, key=f"qty_{idx}_{row['Ticker']}", label_visibility="collapsed")
+                    qty_key = f"qty_{idx}_{ticker_key}"
+                    if ticker_key in st.session_state.saved_portfolio_values:
+                        default_qty = st.session_state.saved_portfolio_values[ticker_key].get('model_qty', 10.0)
+                    else:
+                        default_qty = 10.0
+                    model_qty = st.number_input("Model szt.", 0.0, 10000.0, default_qty, step=0.5, key=qty_key, label_visibility="collapsed")
                     model_value = model_qty * row["Price"]
                     pct = (model_value / st.session_state.paper_capital) * 100
                 
-                # Faktyczny portfel - step=0.01 dla ułamków
+                # Faktyczny portfel
+                real_key = f"real_{idx}_{ticker_key}"
+                if ticker_key in st.session_state.saved_portfolio_values:
+                    default_real = st.session_state.saved_portfolio_values[ticker_key].get('real_qty', round(model_qty, 2))
+                else:
+                    default_real = round(model_qty, 2)
+                
                 real_qty = st.number_input(
                     "Faktyczny", 
                     0.0, 
                     10000.0, 
-                    float(round(model_qty, 2)),
+                    float(default_real),
                     step=0.01,
-                    key=f"real_{idx}_{row['Ticker']}",
+                    key=real_key,
                     label_visibility="collapsed"
                 )
                 real_value = real_qty * row["Price"]
                 
-                # ✅ 1 POZYCJA = 1 LINIA (flexbox)
+                total_model += model_value
+                total_real += real_value
+                
+                # ✅ 1 POZYCJA = 1 LINIA
                 st.markdown(f"""
                 <div class="pt-row">
-                    <div class="pt-col" style="text-align:left; flex:1.5;">{row['Ticker']}</div>
+                    <div class="pt-col" style="text-align:left; flex:1.5;">{ticker_key}</div>
                     <div class="pt-col">
                         <div class="pt-value">{row['Price']:,.2f}</div>
                         <div class="pt-label">{st.session_state.currency}</div>
@@ -651,7 +627,7 @@ with tab4:
                 """, unsafe_allow_html=True)
                 
                 alloc_data.append({
-                    "Ticker": row["Ticker"], 
+                    "Ticker": ticker_key, 
                     "Cena": row["Price"],
                     "% Model": pct, 
                     "Ilość (ułamkowa)": model_qty, 
@@ -660,13 +636,49 @@ with tab4:
                 })
             
             df_alloc = pd.DataFrame(alloc_data)
+            remaining = st.session_state.paper_capital - total_real
             
+            # ✅ PODSUMOWANIE NA GÓRZE
             st.divider()
+            st.markdown(f"""
+            <div class="summary-box">
+                <div style="display: flex; gap: 16px; flex-wrap: wrap;">
+                    <div style="flex: 1; min-width: 150px;">
+                        <div style="color: #64748b; font-size: 11px;">📊 Zaalokowano (Model)</div>
+                        <div style="color: #1e3a5f; font-size: 20px; font-weight: 600;">{format_currency(total_model, st.session_state.currency)}</div>
+                    </div>
+                    <div style="flex: 1; min-width: 150px;">
+                        <div style="color: #64748b; font-size: 11px;">📊 Zaalokowano (Real)</div>
+                        <div style="color: #1e3a5f; font-size: 20px; font-weight: 600;">{format_currency(total_real, st.session_state.currency)}</div>
+                    </div>
+                    <div style="flex: 1; min-width: 150px;">
+                        <div style="color: #64748b; font-size: 11px;">💵 Gotówka</div>
+                        <div style="color: #10b981; font-size: 20px; font-weight: 600;">{format_currency(remaining, st.session_state.currency)}</div>
+                        <div style="color: #10b981; font-size: 11px;">{((remaining/st.session_state.paper_capital)*100):.1f}% wolnych</div>
+                    </div>
+                    <div style="flex: 1; min-width: 150px;">
+                        <div style="color: #64748b; font-size: 11px;">⚠️ Nadpłynięcie</div>
+                        <div style="color: {'#ef4444' if remaining < 0 else '#10b981'}; font-size: 20px; font-weight: 600;">{'TAK' if remaining < 0 else 'NIE'}</div>
+                    </div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
             
             if st.button("💾 Zatwierdź portfel", type="primary"):
+                # ✅ ZAPISZ PORTFEL
                 st.session_state.portfolio_alloc = df_alloc.copy()
                 st.session_state.portfolio_alloc["Data dodania"] = datetime.now().strftime("%Y-%m-%d")
+                
+                # ✅ ZAPISZ WARTOŚCI DLA KAŻDEJ POZYCJI
+                for _, row in df_alloc.iterrows():
+                    st.session_state.saved_portfolio_values[row["Ticker"]] = {
+                        "pct": row["% Model"],
+                        "model_qty": row["Ilość (ułamkowa)"],
+                        "real_qty": row["Faktyczny portfel"]
+                    }
+                
                 st.success("✅ Portfel zapisany! Sprawdź w Dashboard.")
+                st.rerun()
             
             if not df_alloc.empty:
                 csv = df_alloc.to_csv(index=False).encode('utf-8')
