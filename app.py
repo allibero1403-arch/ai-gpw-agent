@@ -3,57 +3,52 @@ import pandas as pd
 import numpy as np
 from datetime import datetime
 
-# 🎨 STYLIZACJA CSS: Tooltips + Wyśrodkowanie tabel + Sidebar
+# 🎨 STYLIZACJA CSS: Tooltips bezpośrednio na nagłówkach tabel + wyrównanie
 st.markdown("""
 <style>
-.tooltip-wrap { 
-    position: relative; 
-    display: inline-flex; 
-    align-items: center; 
-    gap: 4px; 
-    cursor: help; 
+/* Tooltips na nagłówkach tabel - działa na wyrenderowanej tabeli */
+.stDataFrame table th,
+[data-testid="stTable"] table th {
+    position: relative;
+    cursor: help;
+    color: #f8fafc !important;
 }
-.tooltip-icon { 
-    width: 16px; 
-    height: 16px; 
-    background: #3b82f6; 
-    color: white; 
-    border-radius: 50%; 
-    font-size: 10px; 
-    display: flex; 
-    align-items: center; 
-    justify-content: center; 
-    flex-shrink: 0;
+
+.stDataFrame table th:hover,
+[data-testid="stTable"] table th:hover {
+    color: #3b82f6 !important;
 }
-.tooltip-text {
-    visibility: hidden; 
-    opacity: 0; 
-    width: 280px; 
-    background: #1e293b; 
+
+/* Tooltip text - pojawia się przy najechaniu na nagłówek */
+.stDataFrame table th::after,
+[data-testid="stTable"] table th::after {
+    content: attr(data-tooltip);
+    visibility: hidden;
+    opacity: 0;
+    width: 240px;
+    background: #1e293b;
     color: #f8fafc;
-    text-align: left; 
-    border-radius: 8px; 
-    padding: 10px 14px; 
+    text-align: left;
+    border-radius: 6px;
+    padding: 8px 10px;
     position: absolute;
-    z-index: 1000; 
-    bottom: 120%; 
-    left: 50%; 
+    z-index: 1000;
+    bottom: 100%;
+    left: 50%;
     transform: translateX(-50%);
-    font-size: 12px; 
-    line-height: 1.5; 
-    box-shadow: 0 8px 20px rgba(0,0,0,0.5);
-    transition: all 0.25s ease; 
+    font-size: 11px;
+    line-height: 1.4;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    transition: all 0.2s ease;
     pointer-events: none;
+    white-space: normal;
     border: 1px solid #334155;
 }
-.tooltip-text::before {
-    content: "ℹ️";
-    margin-right: 6px;
-}
-.tooltip-wrap:hover .tooltip-text { 
-    visibility: visible; 
-    opacity: 1; 
-    bottom: 100%; 
+
+.stDataFrame table th:hover::after,
+[data-testid="stTable"] table th:hover::after {
+    visibility: visible;
+    opacity: 1;
 }
 
 /* Wyrównanie tabeli: środek dla wszystkich kolumn poza pierwszą */
@@ -103,51 +98,41 @@ st.markdown("""
     color: white;
 }
 
-/* Header row styling */
-.header-row {
-    background: #0f172a;
-    padding: 10px;
-    border-radius: 8px;
-    margin-bottom: 10px;
+/* Paper Trading - wyrównanie kolumn */
+.pt-column {
+    padding: 8px 4px;
 }
 </style>
 """, unsafe_allow_html=True)
 
-# 📖 LEGENDA WSKAŹNIKÓW (do tooltipów)
+# 📖 LEGENDA WSKAŹNIKÓW
 INDICATOR_DESC = {
-    "Ticker": "Symbol giełdowy spółki na GPW",
-    "Price": "Aktualna cena rynkowa akcji (PLN)",
-    "Target Price": "Średnia cena docelowa analityków (PLN)",
-    "Upside %": "Potencjał wzrostu do ceny docelowej (%) = (Target - Price) / Price × 100",
-    "Market Cap": "Kapitalizacja rynkowa spółki (PLN)",
-    "Dividend Yield": "Roczna stopa dywidendy (%) = Dywidenda / Cena × 100",
-    "PE Ratio": "Cena / Zysk na akcję. <15 = atrakcyjna wycena, >25 = drogo",
-    "PEG Ratio": "PE / Wzrost zysków. <1 = niedowyceniona, >2 = przewartościowana",
-    "Quick Ratio (Q)": "Płynność szybka. >1 = zdolność do spłaty krótkich zobowiązań",
-    "Debt/Assets (Q)": "Udział zadłużenia w aktywach. <0.5 = bezpieczny poziom",
-    "Signal Score": "Wynik kompozytowy AI (0-1): BUY≥0.6, HOLD 0.3-0.6, SELL≤0.3",
-    "Signal": "Sygnał inwestycyjny: 🟢 BUY / 🟡 HOLD / 🔴 SELL",
-    "% Model": "Procentowy udział w portfelu według modelu AI",
-    "Ilość (ułamkowa)": "Sugerowana ilość akcji z modelu (może zawierać ułamki)",
-    "Faktyczny portfel": "Realna ilość akcji do wprowadzenia u brokera (obsługuje ułamki)",
-    "Wartość Realna": "Rzeczywista wartość pozycji w portfelu"
+    "Ticker": "Symbol giełdowy spółki",
+    "Price": "Aktualna cena rynkowa akcji",
+    "Target Price": "Średnia cena docelowa analityków",
+    "Upside %": "Potencjał wzrostu (%)",
+    "Market Cap": "Kapitalizacja rynkowa",
+    "Dividend Yield": "Stopa dywidendy (%)",
+    "PE Ratio": "Cena/Zysk (<15 = tanio)",
+    "PEG Ratio": "PE/Wzrost (<1 = niedowyceniony)",
+    "Quick Ratio (Q)": "Płynność szybka (>1 = OK)",
+    "Debt/Assets (Q)": "Zadłużenie/Aktywa (<0.5 = bezpiecznie)",
+    "Signal Score": "Wynik AI (0-1)",
+    "Signal": "Sygnał: BUY/HOLD/SELL",
+    "Cena": "Cena pojedynczej akcji",
+    "% Model": "Procent alokacji wg modelu AI",
+    "Ilość (ułamkowa)": "Sugerowana ilość akcji z modelu",
+    "Faktyczny portfel": "Realna ilość do wprowadzenia u brokera",
+    "Wartość Realna": "Rzeczywista wartość pozycji"
 }
 
-def tooltip_header(col):
-    """Zwraca nagłówek z hover-tooltipem"""
-    if col in INDICATOR_DESC:
-        return f'<div class="tooltip-wrap">{col}<div class="tooltip-icon">i</div><div class="tooltip-text">{INDICATOR_DESC[col]}</div></div>'
-    return f'<span style="color:#cbd5e1;font-weight:600;">{col}</span>'
-
 def format_currency(val, curr="PLN"):
-    """Formatuje liczbę z walutą i odstępami tysięcznymi"""
     if pd.isna(val): 
         return "-"
     return f"{val:,.0f} {curr}"
 
 @st.cache_data(ttl=3600)
 def generate_mock_data(trade_mode="daily"):
-    """Generuje pełny zestaw danych zależnie od trybu tradingu"""
     tickers = ["PKO.WAR", "PEO.WAR", "PZU.WAR", "KGH.WAR", "LTS.WAR", "CDR.WAR", "DNP.WAR", "ALR.WAR", "JSW.WAR", "MBK.WAR"]
     data = []
     for t in tickers:
@@ -175,7 +160,6 @@ def generate_mock_data(trade_mode="daily"):
     
     df = pd.DataFrame(data)
     
-    # Oblicz Score zależnie od trybu
     if trade_mode == "daily":
         df["Signal Score"] = (
             (df["PE Ratio"] < 18) * 0.15 + 
@@ -233,37 +217,22 @@ with st.sidebar:
     
     st.divider()
     
-    mode_hint = "Szybkie momentum, analiza sentymentu i krótkoterminowy Upside" if st.session_state.trade_mode == "daily" else "Analiza wartości, dywidendy i stabilność finansowa"
+    mode_hint = "Szybkie momentum, analiza sentymentu" if st.session_state.trade_mode == "daily" else "Wartość, dywidendy, stabilność"
     st.markdown(f"""
     <div class="sidebar-hint">
         <div class="sidebar-hint-title">📖 Strategia: {badge_text}</div>
         <div>{mode_hint}</div>
-        <div>PE&lt;15 = tanio | DY&gt;3% = dywidenda</div>
-        <div>Quick&gt;1 = płynność | Upside&gt;10% = potencjał</div>
+        <div style="margin-top:6px;font-size:11px;color:#94a3b8;">PE&lt;15 | DY&gt;3% | Quick&gt;1 | Upside&gt;10%</div>
     </div>
     """, unsafe_allow_html=True)
 
-# Generuj dane zależnie od trybu
+# Generuj dane
 df_all = generate_mock_data(st.session_state.trade_mode)
 cols_display = ["Ticker", "Price", "Target Price", "Upside %", "Market Cap", "Dividend Yield", 
                 "PE Ratio", "PEG Ratio", "Quick Ratio (Q)", "Debt/Assets (Q)", "Signal", "Signal Score"]
 
 # 📊 ZAKŁADKI
 tab1, tab2, tab3, tab4 = st.tabs(["📊 Dashboard", "🔍 Skaner", "📈 Sygnały", "💼 Paper Trading"])
-
-# Funkcja pomocnicza do wyświetlania nagłówków z tooltipami
-def display_tooltip_headers(columns):
-    headers_html = "".join([f'<th style="text-align:{"left" if i==0 else "center"}; padding: 8px; color: #f8fafc;">{tooltip_header(col)}</th>' 
-                           for i, col in enumerate(columns)])
-    st.markdown(f"""
-    <div class="header-row">
-        <table style="width:100%; border-collapse: collapse;">
-            <thead>
-                <tr>{headers_html}</tr>
-            </thead>
-        </table>
-    </div>
-    """, unsafe_allow_html=True)
 
 # TAB 1: DASHBOARD
 with tab1:
@@ -279,9 +248,6 @@ with tab1:
     st.subheader("🔥 Top Movers")
     movers = df_all.sort_values("Upside %", ascending=False).head(5)
     
-    # ✅ Tooltip headers w każdej zakładce
-    display_tooltip_headers(cols_display)
-    
     st.dataframe(movers[cols_display].style.format({
         "Price": f"{{:,.2f}} {st.session_state.currency}", 
         "Target Price": f"{{:,.2f}} {st.session_state.currency}", 
@@ -289,6 +255,8 @@ with tab1:
         "Market Cap": lambda x: format_currency(x, st.session_state.currency), 
         "Signal Score": "{:.2f}"
     }), use_container_width=True, hide_index=True)
+    
+    st.caption("💡 Najedź na nagłówek kolumny, aby zobaczyć opis wskaźnika")
 
 # TAB 2: SKANER
 with tab2:
@@ -315,9 +283,6 @@ with tab2:
         ]
         st.success(f"Znaleziono {len(filt)} spółek")
         
-        # ✅ Tooltip headers w każdej zakładce
-        display_tooltip_headers(cols_display)
-        
         st.dataframe(filt[cols_display].style.format({
             "Price": f"{{:,.2f}} {st.session_state.currency}", 
             "Target Price": f"{{:,.2f}} {st.session_state.currency}", 
@@ -325,6 +290,8 @@ with tab2:
             "Market Cap": lambda x: format_currency(x, st.session_state.currency), 
             "Signal Score": "{:.2f}"
         }), use_container_width=True, hide_index=True)
+        
+        st.caption("💡 Najedź na nagłówek kolumny, aby zobaczyć opis wskaźnika")
 
 # TAB 3: SYGNAŁY
 with tab3:
@@ -334,9 +301,6 @@ with tab3:
     sig_filter = st.radio("Filtr sygnałów", ["Wszystkie", "🟢 BUY", "🟡 HOLD", "🔴 SELL"], horizontal=True)
     df_sig = df_all[df_all["Signal"] == sig_filter] if sig_filter != "Wszystkie" else df_all
     
-    # ✅ Tooltip headers w każdej zakładce
-    display_tooltip_headers(cols_display)
-    
     st.dataframe(df_sig[cols_display].style.format({
         "Price": f"{{:,.2f}} {st.session_state.currency}", 
         "Target Price": f"{{:,.2f}} {st.session_state.currency}", 
@@ -345,7 +309,7 @@ with tab3:
         "Signal Score": "{:.2f}"
     }), use_container_width=True, hide_index=True)
     
-    st.caption("💡 Najedź na ikonę ℹ️ przy nazwie kolumny, aby zobaczyć opis wskaźnika")
+    st.caption("💡 Najedź na nagłówek kolumny, aby zobaczyć opis wskaźnika")
 
 # TAB 4: PAPER TRADING
 with tab4:
@@ -360,41 +324,49 @@ with tab4:
         tickers_list = st.multiselect("Wybór walorów", df_all["Ticker"].tolist(), default=df_all["Ticker"].tolist()[:5])
         
     with col_right:
-        st.markdown("📝 Konfiguracja pozycji: **Model AI vs Realny Portfel**")
-        st.caption("💡 Ułamkowe części akcji są dozwolone (2 miejsca po przecinku)")
+        st.markdown("📝 Konfiguracja pozycji")
+        st.caption("💡 Ułamkowe części akcji dozwolone (2 miejsca po przecinku)")
         
         if tickers_list:
             alloc_data = []
             df_tickers = df_all[df_all["Ticker"].isin(tickers_list)]
             
             for idx, row in df_tickers.iterrows():
+                # ✅ Wyrównane kolumny z key dla każdego inputa
                 cA, cB, cC, cD, cE = st.columns([2, 2, 2, 2, 2])
+                
                 with cA:
-                    st.markdown(f"**{row['Ticker']}**")
+                    st.markdown(f"<div class='pt-column'><b>{row['Ticker']}</b></div>", unsafe_allow_html=True)
+                    
                 with cB:
-                    st.markdown(f"Cena: **{row['Price']:,.2f} {st.session_state.currency}**")
+                    st.markdown(f"<div class='pt-column' style='text-align:center;'>{row['Price']:,.2f}<br><small>{st.session_state.currency}</small></div>", unsafe_allow_html=True)
+                    
                 with cC:
                     if alloc_method == "Wg wartości (%)":
-                        pct = st.number_input(f"Model %", 0.0, 100.0, 5.0, step=1.0, key=f"pct_{row['Ticker']}")
+                        pct = st.number_input("Model %", 0.0, 100.0, 5.0, step=1.0, key=f"pct_{idx}_{row['Ticker']}")
                         model_value = (pct/100) * st.session_state.paper_capital
                         model_qty = model_value / row["Price"]
                     else:
-                        model_qty = st.number_input(f"Model Ilość", 0.0, 10000.0, 10.0, step=0.5, key=f"qty_{row['Ticker']}")
+                        model_qty = st.number_input("Model szt.", 0.0, 10000.0, 10.0, step=0.5, key=f"qty_{idx}_{row['Ticker']}")
                         model_value = model_qty * row["Price"]
                         pct = (model_value / st.session_state.paper_capital) * 100
+                    st.markdown(f"<div class='pt-column' style='text-align:center;'>{model_qty:.2f}<br><small>szt.</small></div>", unsafe_allow_html=True)
+                    
                 with cD:
-                    # ✅ POPRAWKA: step=0.01 dla ułamkowych części akcji (2 miejsca po przecinku)
+                    # ✅ step=0.01 dla ułamkowych części akcji
                     real_qty = st.number_input(
-                        f"Faktyczny", 
+                        "Faktyczny", 
                         0.0, 
                         10000.0, 
                         float(round(model_qty, 2)),
-                        step=0.01,  # ✅ 2 miejsca po przecinku
-                        key=f"real_{row['Ticker']}"
+                        step=0.01,
+                        key=f"real_{idx}_{row['Ticker']}"
                     )
                     real_value = real_qty * row["Price"]
+                    st.markdown(f"<div class='pt-column' style='text-align:center;'>{real_qty:.2f}<br><small>szt.</small></div>", unsafe_allow_html=True)
+                    
                 with cE:
-                    st.metric(f"Wartość", format_currency(real_value, st.session_state.currency))
+                    st.markdown(f"<div class='pt-column' style='text-align:center;'>{real_value:,.0f}<br><small>{st.session_state.currency}</small></div>", unsafe_allow_html=True)
                 
                 alloc_data.append({
                     "Ticker": row["Ticker"], 
@@ -409,18 +381,16 @@ with tab4:
             total_real_alloc = df_alloc["Wartość Realna"].sum()
             remaining = st.session_state.paper_capital - total_real_alloc
             
-            # ✅ Dodano kolumnę "Cena" do wyświetlania
-            display_cols = ["Ticker", "Cena", "% Model", "Ilość (ułamkowa)", "Faktyczny portfel", "Wartość Realna"]
+            st.divider()
             
-            # ✅ Tooltip headers dla Paper Trading
-            pt_cols_display = ["Ticker", "Cena", "% Model", "Ilość (ułamkowa)", "Faktyczny portfel", "Wartość Realna"]
-            display_tooltip_headers(pt_cols_display)
+            # ✅ Tabela z wyrównanymi kolumnami
+            display_cols = ["Ticker", "Cena", "% Model", "Ilość (ułamkowa)", "Faktyczny portfel", "Wartość Realna"]
             
             st.dataframe(
                 df_alloc[display_cols].style.format({
                     "Cena": f"{{:,.2f}} {st.session_state.currency}",
                     "Ilość (ułamkowa)": "{:.4f}", 
-                    "Faktyczny portfel": "{:.2f}",  # ✅ 2 miejsca po przecinku
+                    "Faktyczny portfel": "{:.2f}",
                     "Wartość Realna": f"{{:,.2f}} {st.session_state.currency}", 
                     "% Model": "{:.2f}%"
                 }), 
@@ -431,22 +401,22 @@ with tab4:
             st.divider()
             
             cR1, cR2, cR3, cR4 = st.columns(4)
-            cR1.metric("📊 Zaalokowano (Real)", format_currency(total_real_alloc, st.session_state.currency))
+            cR1.metric("📊 Zaalokowano", format_currency(total_real_alloc, st.session_state.currency))
             cR2.metric("💵 Gotówka", format_currency(remaining, st.session_state.currency), 
                        delta=f"{(remaining/st.session_state.paper_capital)*100:.1f}%")
-            cR3.metric("📊 Zaalokowano (Model)", format_currency(df_alloc["Ilość (ułamkowa)"].sum() * df_alloc["Cena"].mean(), st.session_state.currency))
+            cR3.metric("📊 Pozycji", f"{len(df_alloc)}")
             cR4.metric("⚠️ Nadpłynięcie", "TAK" if remaining < 0 else "NIE", 
                        delta=f"{remaining:,.0f} {st.session_state.currency}")
             
             if st.button("💾 Zatwierdź portfel", type="primary"):
-                st.session_state.portfolio_alloc = df_alloc
+                st.session_state.portfolio_alloc = df_alloc.copy()
                 st.session_state.portfolio_alloc["Data dodania"] = datetime.now().strftime("%Y-%m-%d")
-                st.success("✅ Portfel zapisany! Śledź P&L w dashboardzie.")
+                st.success("✅ Portfel zapisany!")
             
             if not df_alloc.empty:
                 csv = df_alloc.to_csv(index=False).encode('utf-8')
                 st.download_button(
-                    "📥 Eksportuj do CSV",
+                    "📥 Eksportuj CSV",
                     csv,
                     f"portfolio_{st.session_state.trade_mode}_{datetime.now().strftime('%Y%m%d')}.csv",
                     "text/csv"
@@ -454,4 +424,4 @@ with tab4:
 
 # Stopka
 st.markdown("---")
-st.caption("🤖 AI Giełda Agent | System Hybrydowy (Model → Real) | Dane testowe (symulacja) | To narzędzie analityczne, nie doradztwo inwestycyjne")
+st.caption("🤖 AI Giełda Agent | Dane testowe (symulacja) | To narzędzie analityczne, nie doradztwo inwestycyjne")
