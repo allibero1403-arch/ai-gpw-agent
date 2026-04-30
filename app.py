@@ -179,6 +179,8 @@ if "exchange" not in st.session_state:
     st.session_state.exchange = "WIG20"
 if "saved_portfolio_values" not in st.session_state:
     st.session_state.saved_portfolio_values = {}
+if "pt_edit_data" not in st.session_state:
+    st.session_state.pt_edit_data = {}
 
 # 🖥️ UI
 st.set_page_config(page_title="🤖 AI Giełda Agent", layout="wide", page_icon="📈")
@@ -221,6 +223,7 @@ with st.sidebar:
         for key in list(st.session_state.keys()):
             if key not in ["paper_capital", "currency", "exchange", "trade_mode"]:
                 del st.session_state[key]
+        st.session_state.pt_edit_data = {}
         st.rerun()
     
     mode_hint = "Szybkie momentum, sentyment" if st.session_state.trade_mode == "daily" else "Wartość, dywidendy"
@@ -329,12 +332,12 @@ with tab3:
         "Signal Score": "{:.2f}"
     }), use_container_width=True, hide_index=True)
 
-# TAB 4: PAPER TRADING - PODSUMOWANIE NA SAMEJ GÓRZE + EDYCJA DZIAŁA
+# TAB 4: PAPER TRADING - POPRAWIONE PRZELICZANIE WARTOŚCI
 with tab4:
     mode_label = "Day Trade" if st.session_state.trade_mode == "daily" else "Swing/Monthly"
     st.markdown(f"<h3 class='section-header'>💼 Panel Paper Trading — {mode_label} | {st.session_state.exchange}</h3>", unsafe_allow_html=True)
     
-    # === 1. PODSUMOWANIE NA SAMEJ GÓRZE (przed wszystkim innym) ===
+    # === 1. PODSUMOWANIE NA SAMEJ GÓRZE ===
     st.markdown("<div class='summary-box'>", unsafe_allow_html=True)
     st.markdown("**📊 Podsumowanie portfela**")
     c_sum = st.columns(4)
@@ -381,18 +384,19 @@ with tab4:
         # === 4. PRZYGOTOWANIE DANYCH DO EDYCJI ===
         df_tickers = df_all[df_all["Ticker"].isin(tickers_list)].copy()
         
-        # Klucz do cache - zmienia się przy zmianie listy tickers
-        cache_key = f"portfolio_edit_{st.session_state.exchange}_{len(tickers_list)}"
-        
-        if cache_key not in st.session_state or st.session_state.get(f"{cache_key}_tickers") != tickers_list:
-            portfolio_edit_data = []
+        # Reset przy zmianie listy tickers
+        current_tickers_key = f"pt_tickers_{st.session_state.exchange}"
+        if current_tickers_key not in st.session_state or st.session_state[current_tickers_key] != tickers_list:
+            st.session_state[current_tickers_key] = tickers_list
+            st.session_state.pt_edit_data = {}
+            
             for idx, row in df_tickers.iterrows():
                 saved = st.session_state.saved_portfolio_values.get(row["Ticker"], {})
                 default_qty = saved.get("model_qty", round((5.0/100 * st.session_state.paper_capital) / row["Price"], 2))
                 default_value = round(default_qty * row["Price"], 0)
                 default_pct = round((default_value / st.session_state.paper_capital) * 100, 1)
                 
-                portfolio_edit_data.append({
+                st.session_state.pt_edit_data[row["Ticker"]] = {
                     "Ticker": row["Ticker"],
                     "Cena": row["Price"],
                     "%": default_pct,
@@ -400,42 +404,62 @@ with tab4:
                     "Wartość": default_value,
                     "Upside %": row["Upside %"],
                     "Signal": row["Signal"]
-                })
-            st.session_state[cache_key] = portfolio_edit_data
-            st.session_state[f"{cache_key}_tickers"] = tickers_list
+                }
         
-        # === 5. EDYTOWALNA TABELA - JEDEN WIERSZ = JEDNA POZYCJA ===
-        st.markdown("**📊 Edytuj pozycje (kliknij w % lub Ilość aby zmienić)**")
+        # === 5. BUDOWA TABELI Z EDYCJĄ ===
+        st.markdown("**📊 Edytuj pozycje (zmieniaj % lub Ilość - wartość przelicza się automatycznie)**")
         
-        edited_df = st.data_editor(
-            pd.DataFrame(st.session_state[cache_key]),
-            column_config={
-                "Ticker": st.column_config.TextColumn("Ticker", disabled=True, width="medium"),
-                "Cena": st.column_config.NumberColumn("Cena", format="%.2f", disabled=True, width="small"),
-                "%": st.column_config.NumberColumn("%", min_value=0.0, max_value=100.0, step=0.5, width="small"),
-                "Ilość": st.column_config.NumberColumn("Ilość", min_value=0.0, step=0.01, width="small"),
-                "Wartość": st.column_config.NumberColumn("Wartość", format="%.0f", disabled=True, width="small"),
-                "Upside %": st.column_config.NumberColumn("Upside", format="%.1f%%", disabled=True, width="small"),
-                "Signal": st.column_config.TextColumn("Signal", disabled=True, width="small")
-            },
-            hide_index=True,
-            use_container_width=True,
-            key=f"editor_{cache_key}",
-            disabled=False  # ✅ POZWALAJ NA EDYCJĘ
-        )
+        # Kontener na wiersze tabeli
+        edit_rows = []
         
-        # === 6. PRZELICZ WARTOŚCI PO EDYCJI ===
-        edited_df["Wartość"] = (edited_df["Ilość"] * edited_df["Cena"]).round(0)
-        edited_df["%"] = ((edited_df["Wartość"] / st.session_state.paper_capital) * 100).round(1)
+        for idx, (ticker, row_data) in enumerate(st.session_state.pt_edit_data.items()):
+            if ticker not in tickers_list:
+                continue
+                
+            c1, c2, c3, c4, c5, c6, c7 = st.columns([2, 1, 1, 1, 1, 1, 1])
+            
+            with c1:
+                st.text_input("Ticker", row_data["Ticker"], key=f"pt_ticker_{idx}", disabled=True, label_visibility="collapsed")
+            with c2:
+                st.number_input("Cena", value=float(row_data["Cena"]), key=f"pt_cena_{idx}", disabled=True, label_visibility="collapsed")
+            with c3:
+                # ✅ EDYCJA % - przelicza Ilość i Wartość
+                new_pct = st.number_input("%", value=float(row_data["%"]), min_value=0.0, max_value=100.0, step=0.5, key=f"pt_pct_{idx}", label_visibility="collapsed")
+                # Przelicz jeśli % się zmieniło
+                if abs(new_pct - row_data["%"]) > 0.01:
+                    new_value = (new_pct / 100) * st.session_state.paper_capital
+                    new_qty = new_value / row_data["Cena"] if row_data["Cena"] > 0 else 0
+                    st.session_state.pt_edit_data[ticker]["%"] = round(new_pct, 1)
+                    st.session_state.pt_edit_data[ticker]["Wartość"] = round(new_value, 0)
+                    st.session_state.pt_edit_data[ticker]["Ilość"] = round(new_qty, 2)
+                    st.rerun()
+            with c4:
+                # ✅ EDYCJA ILOŚCI - przelicza Wartość i %
+                new_qty = st.number_input("Ilość", value=float(row_data["Ilość"]), min_value=0.0, step=0.01, key=f"pt_qty_{idx}", label_visibility="collapsed")
+                # Przelicz jeśli Ilość się zmieniło
+                if abs(new_qty - row_data["Ilość"]) > 0.001:
+                    new_value = new_qty * row_data["Cena"]
+                    new_pct = (new_value / st.session_state.paper_capital) * 100 if st.session_state.paper_capital > 0 else 0
+                    st.session_state.pt_edit_data[ticker]["Ilość"] = round(new_qty, 2)
+                    st.session_state.pt_edit_data[ticker]["Wartość"] = round(new_value, 0)
+                    st.session_state.pt_edit_data[ticker]["%"] = round(new_pct, 1)
+                    st.rerun()
+            with c5:
+                st.number_input("Wartość", value=float(row_data["Wartość"]), key=f"pt_val_{idx}", disabled=True, label_visibility="collapsed")
+            with c6:
+                st.number_input("Upside", value=float(row_data["Upside %"]), key=f"pt_up_{idx}", disabled=True, label_visibility="collapsed")
+            with c7:
+                st.text_input("Signal", row_data["Signal"], key=f"pt_sig_{idx}", disabled=True, label_visibility="collapsed")
         
-        # Zapisz edycje do cache
-        st.session_state[cache_key] = edited_df.to_dict('records')
+        # === 6. PRZYGOTOWANIE DANYCH DO ZAPISU ===
+        edited_df = pd.DataFrame(list(st.session_state.pt_edit_data.values()))
+        edited_df = edited_df[edited_df["Ticker"].isin(tickers_list)]
         
         # === 7. PODSUMOWANIE ALOKACJI ===
         st.divider()
         st.markdown("**📈 Podsumowanie alokacji**")
         
-        total_alloc = edited_df["Wartość"].sum()
+        total_alloc = edited_df["Wartość"].sum() if "Wartość" in edited_df.columns else 0
         remaining_alloc = st.session_state.paper_capital - total_alloc
         util_alloc = (total_alloc / st.session_state.paper_capital) * 100 if st.session_state.paper_capital > 0 else 0
         
@@ -445,7 +469,18 @@ with tab4:
                        delta=f"{(remaining_alloc/st.session_state.paper_capital)*100:.1f}%" if remaining_alloc >= 0 else "⚠️ Nadpłynięcie")
         c_alloc3.metric("📋 Pozycji", f"{len(edited_df)}")
         
-        # === 8. PRZYCISKI ===
+        # === 8. PODGLĄD TABELI ===
+        st.divider()
+        st.markdown("**📋 Podgląd portfela**")
+        st.dataframe(edited_df[["Ticker", "Cena", "%", "Ilość", "Wartość", "Upside %", "Signal"]].style.format({
+            "Cena": f"{{:,.2f}} {st.session_state.currency}",
+            "%": "{:.1f}%",
+            "Ilość": "{:.2f}",
+            "Wartość": f"{{:,.0f}} {st.session_state.currency}",
+            "Upside %": "{:.1f}%"
+        }), use_container_width=True, hide_index=True)
+        
+        # === 9. PRZYCISKI ===
         st.divider()
         c_btn1, c_btn2 = st.columns([1, 3])
         
