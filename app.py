@@ -346,7 +346,6 @@ with tab3:
     sig_filter = st.radio("Filtr", ["Wszystkie", "🟢 BUY", "🟡 HOLD", "🔴 SELL"], horizontal=True)
     df_sig = df_all[df_all["Signal"] == sig_filter] if sig_filter != "Wszystkie" else df_all
     
-    # ✅ TOOLTIPY TYLKO W NAGŁÓWKACH - BRAK OSOBNEJ LEGENDY
     headers_html = " | ".join([tooltip_header(c) for c in cols_display])
     st.markdown(headers_html, unsafe_allow_html=True)
     
@@ -358,7 +357,7 @@ with tab3:
         "Signal Score": "{:.2f}"
     }), use_container_width=True, hide_index=True)
 
-# TAB 4: PAPER TRADING - JEDNA LINIA, WARTOŚĆ AKTUALIZUJE SIĘ NATYCHMIAST
+# TAB 4: PAPER TRADING - POPRAWIONE
 with tab4:
     mode_label = "Day Trade" if st.session_state.trade_mode == "daily" else "Swing/Monthly"
     st.markdown(f"<h3 class='section-header'>💼 Paper Trading — {mode_label} | {st.session_state.exchange}</h3>", unsafe_allow_html=True)
@@ -391,7 +390,7 @@ with tab4:
         )
         if new_capital != st.session_state.paper_capital:
             st.session_state.paper_capital = new_capital
-            st.session_state.pt_rows = {}  # Reset przy zmianie kapitału
+            st.session_state.pt_rows = {}
             st.rerun()
     with col_cap2:
         st.markdown("<p style='color: #64748b; font-size: 13px; margin-top: 24px;'>💡 Zmień i zatwierdź Enterem</p>", unsafe_allow_html=True)
@@ -461,7 +460,7 @@ with tab4:
             if f"prev_qty_{ticker}" not in st.session_state:
                 st.session_state[f"prev_qty_{ticker}"] = row_data["qty"]
             
-            # === JEDNA LINIA HTML Z INPUTAMI ===
+            # === JEDNA LINIA HTML ===
             st.markdown(f"""
             <div class="pt-row">
                 <div>
@@ -476,7 +475,7 @@ with tab4:
             </div>
             """, unsafe_allow_html=True)
             
-            # Inputy w jednej linii pod HTML
+            # Inputy w jednej linii
             c1, c2, c3 = st.columns([1, 1, 1])
             
             with c1:
@@ -490,7 +489,6 @@ with tab4:
                     label_visibility="collapsed"
                 )
                 
-                # Jeśli % się zmieniło - przelicz Ilość i Wartość
                 if abs(new_pct - st.session_state[f"prev_pct_{ticker}"]) > 0.01:
                     st.session_state[f"prev_pct_{ticker}"] = new_pct
                     new_value = (new_pct / 100) * st.session_state.paper_capital
@@ -511,7 +509,6 @@ with tab4:
                     label_visibility="collapsed"
                 )
                 
-                # Jeśli Ilość się zmieniła - przelicz Wartość i %
                 if abs(new_qty - st.session_state[f"prev_qty_{ticker}"]) > 0.001:
                     st.session_state[f"prev_qty_{ticker}"] = new_qty
                     new_value = new_qty * price
@@ -523,7 +520,6 @@ with tab4:
                     data_changed = True
             
             with c3:
-                # Wartość - tylko do odczytu, aktualizuje się automatycznie
                 st.number_input(
                     "Wartość", 
                     value=float(st.session_state.pt_rows[ticker]["value"]), 
@@ -534,23 +530,30 @@ with tab4:
             
             st.divider()
         
-        # Odśwież jeśli dane się zmieniły
         if data_changed:
             st.rerun()
         
-        # === 6. PRZYGOTOWANIE DANYCH DO ZAPISU ===
-        edited_data = list(st.session_state.pt_rows.values())
-        edited_df = pd.DataFrame(edited_data)
-        edited_df = edited_df[edited_df["ticker"].isin(tickers_list)]
-        edited_df = edited_df.rename(columns={
-            "ticker": "Ticker", "price": "Cena", "pct": "%", 
-            "qty": "Ilość", "value": "Wartość", "upside": "Upside %", "signal": "Signal"
-        })
+        # === 6. PRZYGOTOWANIE DANYCH DO ZAPISU - POPRAWIONE ===
+        # Stwórz DataFrame z poprawnymi kolumnami
+        rows_list = []
+        for ticker, row_data in st.session_state.pt_rows.items():
+            if ticker in tickers_list:
+                rows_list.append({
+                    "Ticker": row_data["ticker"],
+                    "Cena": row_data["price"],
+                    "%": row_data["pct"],
+                    "Ilość": row_data["qty"],
+                    "Wartość": row_data["value"],
+                    "Upside %": row_data["upside"],
+                    "Signal": row_data["signal"]
+                })
+        
+        edited_df = pd.DataFrame(rows_list)
         
         # === 7. PODSUMOWANIE ===
         st.markdown("**📈 Podsumowanie**")
         
-        total_alloc = edited_df["Wartość"].sum() if "Wartość" in edited_df.columns else 0
+        total_alloc = edited_df["Wartość"].sum() if not edited_df.empty and "Wartość" in edited_df.columns else 0
         remaining_alloc = st.session_state.paper_capital - total_alloc
         util_alloc = (total_alloc / st.session_state.paper_capital) * 100 if st.session_state.paper_capital > 0 else 0
         
