@@ -312,7 +312,7 @@ with tab2:
             "Signal Score": "{:.2f}"
         }), use_container_width=True, hide_index=True)
 
-# TAB 3: SYGNAŁY - BEZ LEGENDY, TYLKO TOOLTIPY W NAGŁÓWKACH
+# TAB 3: SYGNAŁY - USUNIĘTO LEGENDĘ, TOOLTIPY TYLKO W NAGŁÓWKACH TABELI
 with tab3:
     mode_label = "Day Trade" if st.session_state.trade_mode == "daily" else "Swing/Monthly"
     st.markdown(f"<h3 class='section-header'>🎯 Lista Sygnałów — {mode_label}</h3>", unsafe_allow_html=True)
@@ -320,7 +320,7 @@ with tab3:
     sig_filter = st.radio("Filtr sygnałów", ["Wszystkie", "🟢 BUY", "🟡 HOLD", "🔴 SELL"], horizontal=True)
     df_sig = df_all[df_all["Signal"] == sig_filter] if sig_filter != "Wszystkie" else df_all
     
-    # ✅ TOOLTIPY TYLKO W NAGŁÓWKACH TABELI (bez osobnego wiersza z legendą)
+    # ✅ TOOLTIPY TYLKO W NAGŁÓWKACH TABELI - BEZ OSOBNEGO WIERSZA Z LEGENDĄ
     headers_html = " | ".join([tooltip_header(c) for c in cols_display])
     st.markdown(headers_html, unsafe_allow_html=True)
     
@@ -332,7 +332,7 @@ with tab3:
         "Signal Score": "{:.2f}"
     }), use_container_width=True, hide_index=True)
 
-# TAB 4: PAPER TRADING - POPRAWIONE PRZELICZANIE WARTOŚCI
+# TAB 4: PAPER TRADING
 with tab4:
     mode_label = "Day Trade" if st.session_state.trade_mode == "daily" else "Swing/Monthly"
     st.markdown(f"<h3 class='section-header'>💼 Panel Paper Trading — {mode_label} | {st.session_state.exchange}</h3>", unsafe_allow_html=True)
@@ -376,7 +376,8 @@ with tab4:
     
     st.divider()
     
-    # === 3. WYBÓR WALORÓW ===
+    # === 3. WYBÓR WALORÓW - DOMYŚLNIE ZATWIERDZONE POZYCJE ===
+    # ✅ PO ZATWIERDZENIU - POZYCJE NIE ZMIENIAJĄ SIĘ PO ODŚWIEŻENIU
     default_tickers = st.session_state.portfolio_alloc["Ticker"].tolist() if not st.session_state.portfolio_alloc.empty else df_all["Ticker"].tolist()[:5]
     tickers_list = st.multiselect("📋 Wybierz walory", df_all["Ticker"].tolist(), default=default_tickers)
     
@@ -391,6 +392,7 @@ with tab4:
             st.session_state.pt_edit_data = {}
             
             for idx, row in df_tickers.iterrows():
+                # ✅ ŁADUJ Z ZAPISANYCH WARTOŚCI (saved_portfolio_values)
                 saved = st.session_state.saved_portfolio_values.get(row["Ticker"], {})
                 default_qty = saved.get("model_qty", round((5.0/100 * st.session_state.paper_capital) / row["Price"], 2))
                 default_value = round(default_qty * row["Price"], 0)
@@ -489,6 +491,7 @@ with tab4:
                 st.session_state.portfolio_alloc = edited_df[["Ticker", "Cena", "%", "Ilość", "Wartość", "Upside %", "Signal"]].copy()
                 st.session_state.portfolio_alloc["Data dodania"] = datetime.now().strftime("%Y-%m-%d")
                 
+                # ✅ ZAPISZ WSZYSTKIE DANE DO saved_portfolio_values
                 for _, row in edited_df.iterrows():
                     st.session_state.saved_portfolio_values[row["Ticker"]] = {
                         "pct": row["%"],
