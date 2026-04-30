@@ -76,6 +76,17 @@ st.markdown("""
     background: #f1f5f9; border: 1px solid #e2e8f0;
     border-radius: 8px; padding: 16px; margin-bottom: 20px;
 }
+
+/* Paper Trading - wyszarzenie po zatwierdzeniu */
+.pt-approved {
+    opacity: 0.5;
+    pointer-events: none;
+}
+.pt-hint {
+    color: #64748b;
+    font-size: 12px;
+    margin-top: 8px;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -171,6 +182,8 @@ if "exchange" not in st.session_state:
     st.session_state.exchange = "WIG20"
 if "saved_portfolio_values" not in st.session_state:
     st.session_state.saved_portfolio_values = {}
+if "pt_approved" not in st.session_state:
+    st.session_state.pt_approved = False
 
 # 🖥️ UI
 st.set_page_config(page_title="🤖 AI Giełda Agent", layout="wide", page_icon="📈")
@@ -319,7 +332,7 @@ with tab3:
         "Signal Score": "{:.2f}"
     }), use_container_width=True, hide_index=True)
 
-# TAB 4: PAPER TRADING - CIĄGŁA TABELA, AUTOMATYCZNE PRZELICZANIE
+# TAB 4: PAPER TRADING - DELIKATNE ZMIANY WIZUALNE
 with tab4:
     mode_label = "Day Trade" if st.session_state.trade_mode == "daily" else "Swing/Monthly"
     st.markdown(f"<h3 class='section-header'>💼 Paper Trading — {mode_label} | {st.session_state.exchange}</h3>", unsafe_allow_html=True)
@@ -340,7 +353,7 @@ with tab4:
     
     st.markdown("</div>", unsafe_allow_html=True)
     
-    # === 2. KAPITAŁ - MOŻLIWOŚĆ ZMIANY ===
+    # === 2. KAPITAŁ - MOŻLIWOŚĆ ZMIANY + HINT POD WARTOŚCIĄ ===
     col_cap1, col_cap2 = st.columns([1, 3])
     with col_cap1:
         new_capital = st.number_input(
@@ -350,25 +363,32 @@ with tab4:
             step=1000.0,
             key="capital_pt"
         )
+        # ✅ HINT POD WARTOŚCIĄ KAPITAŁU
+        st.markdown('<p class="pt-hint">💡 Zmień i zatwierdź Enterem</p>', unsafe_allow_html=True)
+        
         if new_capital != st.session_state.paper_capital:
             st.session_state.paper_capital = new_capital
             if "pt_df" in st.session_state:
                 del st.session_state.pt_df
+            st.session_state.pt_approved = False
             st.rerun()
     with col_cap2:
-        st.markdown("<p style='color: #64748b; font-size: 13px; margin-top: 24px;'>💡 Zmień i zatwierdź Enterem</p>", unsafe_allow_html=True)
+        # ✅ WSZARZENIE PO ZATWIERDZENIU
+        if st.session_state.pt_approved:
+            st.markdown('<p class="pt-hint" style="opacity: 0.5;">✅ Portfel zatwierdzony</p>', unsafe_allow_html=True)
+        else:
+            st.markdown('<p class="pt-hint">📝 Edytuj pozycje poniżej</p>', unsafe_allow_html=True)
     
     st.divider()
     
     # === 3. WYBÓR WALORÓW ===
     default_tickers = st.session_state.portfolio_alloc["Ticker"].tolist() if not st.session_state.portfolio_alloc.empty else df_all["Ticker"].tolist()[:5]
-    tickers_list = st.multiselect("📋 Wybierz walory", df_all["Ticker"].tolist(), default=default_tickers, key="tickers_pt")
+    tickers_list = st.multiselect("📋 Wybierz walory", df_all["Ticker"].tolist(), default=default_tickers, key="tickers_pt", disabled=st.session_state.pt_approved)
     
     if tickers_list:
         # === 4. INICJALIZACJA TABELI ===
         df_tickers = df_all[df_all["Ticker"].isin(tickers_list)].copy()
         
-        # Sprawdź czy trzeba zresetować tabelę
         tickers_hash = hash(tuple(sorted(tickers_list)))
         if "pt_df" not in st.session_state or st.session_state.get("pt_tickers_hash") != tickers_hash:
             st.session_state.pt_tickers_hash = tickers_hash
@@ -410,7 +430,7 @@ with tab4:
             hide_index=True,
             use_container_width=True,
             key="editor_pt",
-            disabled=False
+            disabled=st.session_state.pt_approved  # ✅ WYSZARZENIE PO ZATWIERDZENIU
         )
         
         # === 6. AUTOMATYCZNE PRZELICZANIE ===
@@ -420,7 +440,6 @@ with tab4:
             if orig is None:
                 continue
             
-            # Jeśli % się zmieniło
             if abs(edited_df.iloc[idx]["%"] - orig["%"]) > 0.01:
                 new_pct = edited_df.iloc[idx]["%"]
                 new_value = (new_pct / 100) * st.session_state.paper_capital
@@ -429,7 +448,6 @@ with tab4:
                 edited_df.at[idx, "Ilość"] = round(new_qty, 2)
                 changed = True
             
-            # Jeśli Ilość się zmieniło
             elif abs(edited_df.iloc[idx]["Ilość"] - orig["Ilość"]) > 0.001:
                 new_qty = edited_df.iloc[idx]["Ilość"]
                 new_value = new_qty * edited_df.iloc[idx]["Cena"]
@@ -438,7 +456,6 @@ with tab4:
                 edited_df.at[idx, "%"] = round(new_pct, 1)
                 changed = True
         
-        # Zapisz zmiany i odśwież
         if changed:
             st.session_state.pt_df = edited_df
             st.rerun()
@@ -462,7 +479,7 @@ with tab4:
         c_btn1, c_btn2 = st.columns([1, 3])
         
         with c_btn1:
-            if st.button("💾 Zatwierdź portfel", type="primary", use_container_width=True, key="approve_pt"):
+            if st.button("💾 Zatwierdź portfel", type="primary", use_container_width=True, key="approve_pt", disabled=st.session_state.pt_approved):
                 st.session_state.portfolio_alloc = edited_df[["Ticker", "Cena", "%", "Ilość", "Wartość", "Upside %", "Signal"]].copy()
                 st.session_state.portfolio_alloc["Data"] = datetime.now().strftime("%Y-%m-%d")
                 
@@ -473,6 +490,7 @@ with tab4:
                         "value": float(row["Wartość"])
                     }
                 
+                st.session_state.pt_approved = True  # ✅ OZNACZ JAKO ZATWIERDZONE
                 st.success("✅ Portfel zapisany! Sprawdź w Dashboard.")
                 st.rerun()
         
@@ -481,7 +499,7 @@ with tab4:
                 csv = edited_df.to_csv(index=False).encode('utf-8')
                 st.download_button("📥 Eksportuj CSV", csv,
                     f"portfolio_{st.session_state.exchange}_{datetime.now().strftime('%Y%m%d')}.csv",
-                    "text/csv", use_container_width=True)
+                    "text/csv", use_container_width=True, disabled=st.session_state.pt_approved)
     else:
         st.info("👈 Wybierz walory z listy powyżej")
 
