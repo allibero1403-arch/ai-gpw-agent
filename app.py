@@ -77,7 +77,7 @@ st.markdown("""
     border-radius: 8px; padding: 16px; margin-bottom: 20px;
 }
 
-/* Paper Trading - wyszarzenie po zatwierdzeniu */
+/* Paper Trading */
 .pt-hint {
     color: #64748b;
     font-size: 12px;
@@ -85,6 +85,12 @@ st.markdown("""
 }
 .pt-approved-msg {
     color: #10b981;
+    font-size: 13px;
+    font-weight: 500;
+    margin-top: 10px;
+}
+.pt-editing-msg {
+    color: #f59e0b;
     font-size: 13px;
     font-weight: 500;
     margin-top: 10px;
@@ -184,6 +190,10 @@ if "exchange" not in st.session_state:
     st.session_state.exchange = "WIG20"
 if "saved_portfolio_values" not in st.session_state:
     st.session_state.saved_portfolio_values = {}
+if "pt_approved" not in st.session_state:
+    st.session_state.pt_approved = False
+if "pt_approved_data" not in st.session_state:
+    st.session_state.pt_approved_data = None
 
 # 🖥️ UI
 st.set_page_config(page_title="🤖 AI Giełda Agent", layout="wide", page_icon="📈")
@@ -332,7 +342,7 @@ with tab3:
         "Signal Score": "{:.2f}"
     }), use_container_width=True, hide_index=True)
 
-# TAB 4: PAPER TRADING - POPRAWIONE
+# TAB 4: PAPER TRADING - AUTO DETEKCJA ZMIAN
 with tab4:
     mode_label = "Day Trade" if st.session_state.trade_mode == "daily" else "Swing/Monthly"
     st.markdown(f"<h3 class='section-header'>💼 Paper Trading — {mode_label} | {st.session_state.exchange}</h3>", unsafe_allow_html=True)
@@ -363,11 +373,11 @@ with tab4:
             step=1000.0,
             key="capital_pt"
         )
-        # ✅ HINT POD WARTOŚCIĄ KAPITAŁU
         st.markdown('<p class="pt-hint">💡 Zmień i zatwierdź Enterem</p>', unsafe_allow_html=True)
         
         if new_capital != st.session_state.paper_capital:
             st.session_state.paper_capital = new_capital
+            st.session_state.pt_approved = False  # ✅ RESET PRZY ZMIANIE KAPITAŁU
             if "pt_df" in st.session_state:
                 del st.session_state.pt_df
             st.rerun()
@@ -405,8 +415,10 @@ with tab4:
                 })
             
             st.session_state.pt_df = pd.DataFrame(rows)
+            # ✅ RESET PRZY ZMIANIE LISTY WALORÓW
+            st.session_state.pt_approved = False
         
-        # === 5. EDYTOWALNA TABELA - CIĄGŁE WIERSZE ===
+        # === 5. EDYTOWALNA TABELA ===
         st.markdown("**📊 Edytuj pozycje (zmieniaj % lub Ilość - Wartość przelicza się automatycznie)**")
         
         edited_df = st.data_editor(
@@ -423,7 +435,7 @@ with tab4:
             hide_index=True,
             use_container_width=True,
             key="editor_pt",
-            disabled=False  # ✅ ZAWSZE MOŻNA EDYTOWAĆ
+            disabled=False
         )
         
         # === 6. AUTOMATYCZNE PRZELICZANIE ===
@@ -451,9 +463,32 @@ with tab4:
         
         if changed:
             st.session_state.pt_df = edited_df
+            st.session_state.pt_approved = False  # ✅ RESET PRZY ZMIANIE DANYCH
             st.rerun()
         
-        # === 7. PODSUMOWANIE ===
+        # === 7. SPRAWDZENIE CZY DANE SĄ ZATWIERDZONE ===
+        # ✅ PORÓWNAJ OBECNE DANE Z ZATWIERDZONYMI
+        is_approved = False
+        if st.session_state.pt_approved and st.session_state.pt_approved_data is not None:
+            if len(edited_df) == len(st.session_state.pt_approved_data):
+                # Porównaj wiersz po wierszu
+                is_approved = True
+                for idx in range(len(edited_df)):
+                    if edited_df.iloc[idx]["Ticker"] != st.session_state.pt_approved_data[idx]["Ticker"]:
+                        is_approved = False
+                        break
+                    if edited_df.iloc[idx]["Ilość"] != st.session_state.pt_approved_data[idx]["Ilość"]:
+                        is_approved = False
+                        break
+                    if edited_df.iloc[idx]["Wartość"] != st.session_state.pt_approved_data[idx]["Wartość"]:
+                        is_approved = False
+                        break
+        
+        # Jeśli dane się różnią od zatwierdzonych, resetuj flagę
+        if not is_approved and st.session_state.pt_approved:
+            st.session_state.pt_approved = False
+        
+        # === 8. PODSUMOWANIE ===
         st.divider()
         st.markdown("**📈 Podsumowanie**")
         
@@ -467,7 +502,7 @@ with tab4:
                        delta=f"{(remaining_alloc/st.session_state.paper_capital)*100:.1f}%" if remaining_alloc >= 0 else "⚠️")
         c_alloc3.metric("📋 Pozycji", f"{len(edited_df)}")
         
-        # === 8. PRZYCISKI + KOMUNIKAT ===
+        # === 9. PRZYCISKI + KOMUNIKAT ===
         st.divider()
         c_btn1, c_btn2 = st.columns([1, 3])
         
@@ -483,13 +518,17 @@ with tab4:
                         "value": float(row["Wartość"])
                     }
                 
+                # ✅ ZAPISZ ZATWIERDZONE DANE DO PORÓWNANIA
+                st.session_state.pt_approved_data = edited_df[["Ticker", "Ilość", "Wartość"]].to_dict('records')
                 st.session_state.pt_approved = True
                 st.success("✅ Portfel zapisany! Sprawdź w Dashboard.")
                 st.rerun()
             
-            # ✅ KOMUNIKAT POD PRZYCISKIEM
+            # ✅ KOMUNIKAT POD PRZYCISKIEM - ZMIENIA SIĘ W ZALEŻNOŚCI OD STANU
             if st.session_state.get("pt_approved", False):
                 st.markdown('<p class="pt-approved-msg">✅ Portfel zatwierdzony</p>', unsafe_allow_html=True)
+            else:
+                st.markdown('<p class="pt-editing-msg">✏️ Portfel w edycji</p>', unsafe_allow_html=True)
         
         with c_btn2:
             if not edited_df.empty:
