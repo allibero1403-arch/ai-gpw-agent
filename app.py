@@ -76,41 +76,6 @@ st.markdown("""
     background: #f1f5f9; border: 1px solid #e2e8f0;
     border-radius: 8px; padding: 16px; margin-bottom: 20px;
 }
-
-/* Paper Trading - jedna linia na pozycję */
-.pt-row {
-    display: grid;
-    grid-template-columns: 1.5fr 1fr 1fr 1fr 1fr 1fr;
-    gap: 8px;
-    padding: 10px;
-    border-bottom: 1px solid #e2e8f0;
-    background: #ffffff;
-    align-items: end;
-}
-.pt-row:hover { background: #f8fafc; }
-.pt-header {
-    display: grid;
-    grid-template-columns: 1.5fr 1fr 1fr 1fr 1fr 1fr;
-    gap: 8px;
-    padding: 12px 10px;
-    background: #f1f5f9;
-    border-radius: 8px 8px 0 0;
-    font-weight: 600;
-    color: #1e3a5f;
-    font-size: 13px;
-}
-.pt-label {
-    font-size: 10px;
-    color: #64748b;
-    text-transform: uppercase;
-    display: block;
-    margin-bottom: 4px;
-}
-.pt-value {
-    font-size: 14px;
-    font-weight: 500;
-    color: #1e293b;
-}
 </style>
 """, unsafe_allow_html=True)
 
@@ -357,7 +322,7 @@ with tab3:
         "Signal Score": "{:.2f}"
     }), use_container_width=True, hide_index=True)
 
-# TAB 4: PAPER TRADING - POPRAWIONE
+# TAB 4: PAPER TRADING - WSZYSTKO W JEDNEJ LINII
 with tab4:
     mode_label = "Day Trade" if st.session_state.trade_mode == "daily" else "Swing/Monthly"
     st.markdown(f"<h3 class='section-header'>💼 Paper Trading — {mode_label} | {st.session_state.exchange}</h3>", unsafe_allow_html=True)
@@ -429,25 +394,15 @@ with tab4:
                 }
         
         # === 4. NAGŁÓWEK TABELI ===
-        st.markdown("""
-        <div class="pt-header">
-            <div>Ticker</div>
-            <div>% Alokacji</div>
-            <div>Ilość akcji</div>
-            <div>Wartość</div>
-            <div>Upside</div>
-            <div>Signal</div>
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown("**📊 Edytuj pozycje (wszystko w jednej linii)**")
         
-        # === 5. WIERSZE - JEDNA LINIA NA POZYCJĘ ===
+        # === 5. WIERSZE - WSZYSTKO W JEDNEJ LINII ===
         data_changed = False
         
         for ticker, row_data in st.session_state.pt_rows.items():
             if ticker not in tickers_list:
                 continue
             
-            idx = row_data["idx"]
             price = row_data["price"]
             
             # Unikalne klucze
@@ -460,25 +415,14 @@ with tab4:
             if f"prev_qty_{ticker}" not in st.session_state:
                 st.session_state[f"prev_qty_{ticker}"] = row_data["qty"]
             
-            # === JEDNA LINIA HTML ===
-            st.markdown(f"""
-            <div class="pt-row">
-                <div>
-                    <div class="pt-value"><b>{ticker}</b></div>
-                    <div class="pt-label">Cena: {price:,.2f} {st.session_state.currency}</div>
-                </div>
-                <div></div>
-                <div></div>
-                <div></div>
-                <div class="pt-value">{row_data['upside']:.1f}%</div>
-                <div class="pt-value">{row_data['signal']}</div>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            # Inputy w jednej linii
-            c1, c2, c3 = st.columns([1, 1, 1])
+            # === JEDNA LINIA - 6 KOLUMN ===
+            c1, c2, c3, c4, c5, c6 = st.columns([2, 1, 1, 1, 1, 1])
             
             with c1:
+                st.markdown(f"**{ticker}**")
+                st.caption(f"{price:,.2f} {st.session_state.currency}")
+            
+            with c2:
                 new_pct = st.number_input(
                     "%", 
                     value=float(st.session_state.pt_rows[ticker]["pct"]), 
@@ -499,7 +443,7 @@ with tab4:
                     st.session_state[f"prev_qty_{ticker}"] = round(new_qty, 2)
                     data_changed = True
             
-            with c2:
+            with c3:
                 new_qty = st.number_input(
                     "Ilość", 
                     value=float(st.session_state.pt_rows[ticker]["qty"]), 
@@ -519,7 +463,7 @@ with tab4:
                     st.session_state[f"prev_pct_{ticker}"] = round(new_pct, 1)
                     data_changed = True
             
-            with c3:
+            with c4:
                 st.number_input(
                     "Wartość", 
                     value=float(st.session_state.pt_rows[ticker]["value"]), 
@@ -528,13 +472,18 @@ with tab4:
                     label_visibility="collapsed"
                 )
             
+            with c5:
+                st.markdown(f"<div style='text-align:center; padding-top:10px;'>{row_data['upside']:.1f}%</div>", unsafe_allow_html=True)
+            
+            with c6:
+                st.markdown(f"<div style='text-align:center; padding-top:10px;'>{row_data['signal']}</div>", unsafe_allow_html=True)
+            
             st.divider()
         
         if data_changed:
             st.rerun()
         
-        # === 6. PRZYGOTOWANIE DANYCH DO ZAPISU - POPRAWIONE ===
-        # Stwórz DataFrame z poprawnymi kolumnami
+        # === 6. PRZYGOTOWANIE DANYCH DO ZAPISU ===
         rows_list = []
         for ticker, row_data in st.session_state.pt_rows.items():
             if ticker in tickers_list:
