@@ -22,47 +22,6 @@ st.markdown("""
 .stDataFrame table th:not(:first-child), .stDataFrame table td:not(:first-child) { text-align: center !important; }
 .stDataFrame table th:first-child, .stDataFrame table td:first-child { text-align: left !important; }
 
-/* Paper Trading - Header */
-.pt-header {
-    display: grid;
-    grid-template-columns: 2fr 1fr 1fr 1fr 1fr 1fr;
-    gap: 10px;
-    padding: 12px 10px;
-    background: #f1f5f9;
-    border-radius: 8px 8px 0 0;
-    font-weight: 600;
-    color: #1e3a5f;
-    border-bottom: 2px solid #3b82f6;
-    font-size: 13px;
-}
-
-/* Paper Trading - Wiersz */
-.pt-row {
-    display: grid;
-    grid-template-columns: 2fr 1fr 1fr 1fr 1fr 1fr;
-    gap: 10px;
-    padding: 14px 10px;
-    border-bottom: 1px solid #e2e8f0;
-    background: #ffffff;
-    align-items: center;
-}
-.pt-row:hover { background: #f8fafc; }
-.pt-row:last-child { border-bottom: none; border-radius: 0 0 8px 8px; }
-
-.pt-col { text-align: center; }
-.pt-col:first-child { text-align: left; font-weight: 600; color: #1e3a5f; }
-.pt-label { font-size: 9px; color: #64748b; text-transform: uppercase; display: block; }
-.pt-value { font-size: 14px; color: #1e293b; font-weight: 500; }
-.pt-value.highlight { color: #3b82f6; font-weight: 600; }
-
-/* Inputy bez label */
-.stNumberInput label { display: none !important; }
-.stNumberInput input {
-    width: 100%; text-align: center; border: 1px solid #e2e8f0;
-    border-radius: 6px; padding: 8px 4px; font-size: 13px; background: #f8fafc;
-}
-.stNumberInput input:focus { border-color: #3b82f6; outline: none; background: #ffffff; }
-
 /* Metric boxes */
 [data-testid="stMetric"] {
     background: #ffffff !important;
@@ -129,6 +88,14 @@ st.markdown("""
 .summary-box {
     background: #f1f5f9; border: 1px solid #e2e8f0;
     border-radius: 8px; padding: 16px; margin-bottom: 20px;
+}
+
+/* Paper Trading Table Styling */
+.pt-table-container {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    overflow: hidden;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -388,143 +355,157 @@ with tab3:
         "Signal Score": "{:.2f}"
     }), use_container_width=True, hide_index=True)
 
-# TAB 4: PAPER TRADING
+# TAB 4: PAPER TRADING - POPRAWIONA WERSJA
 with tab4:
     mode_label = "Day Trade" if st.session_state.trade_mode == "daily" else "Swing/Monthly"
     st.markdown(f"<h3 class='section-header'>💼 Panel Paper Trading — {mode_label} | {st.session_state.exchange}</h3>", unsafe_allow_html=True)
+    display_tooltip_legend()
     
-    col_left, col_right = st.columns([1, 2])
+    # === PODSUMOWANIE NA GÓRZE ===
+    st.markdown("<div class='summary-box'>", unsafe_allow_html=True)
+    c_sum1, c_sum2, c_sum3, c_sum4 = st.columns(4)
+    with c_sum1:
+        st.metric("💰 Kapitał całkowity", format_currency(st.session_state.paper_capital, st.session_state.currency))
+    with c_sum2:
+        if not st.session_state.portfolio_alloc.empty:
+            invested = st.session_state.portfolio_alloc["Wartość pozycji"].sum()
+            st.metric("📊 Zainwestowano", format_currency(invested, st.session_state.currency))
+        else:
+            st.metric("📊 Zainwestowano", format_currency(0, st.session_state.currency))
+    with c_sum3:
+        if not st.session_state.portfolio_alloc.empty:
+            invested = st.session_state.portfolio_alloc["Wartość pozycji"].sum()
+            remaining = st.session_state.paper_capital - invested
+            st.metric("💵 Gotówka", format_currency(remaining, st.session_state.currency), 
+                     delta=f"{(remaining/st.session_state.paper_capital)*100:.1f}% wolnych")
+        else:
+            st.metric("💵 Gotówka", format_currency(st.session_state.paper_capital, st.session_state.currency),
+                     delta="100% wolnych")
+    with c_sum4:
+        if not st.session_state.portfolio_alloc.empty:
+            invested = st.session_state.portfolio_alloc["Wartość pozycji"].sum()
+            st.metric("📈 Wykorzystanie", f"{(invested/st.session_state.paper_capital)*100:.1f}%")
+        else:
+            st.metric("📈 Wykorzystanie", "0%")
+    st.markdown("</div>", unsafe_allow_html=True)
+    
+    # === KONFIGURACJA PORTFELA ===
+    col_left, col_right = st.columns([1, 3])
     
     with col_left:
-        st.markdown("<p style='color: #64748b; font-size: 12px;'>💰 Dostępny Kapitał</p>", unsafe_allow_html=True)
-        st.markdown(f"<h2 style='color: #1e3a5f; margin: 8px 0;'>{format_currency(st.session_state.paper_capital, st.session_state.currency)}</h2>", unsafe_allow_html=True)
-        
+        st.markdown("**⚙️ Konfiguracja**")
         alloc_method = st.radio("Metoda alokacji", ["Wg wartości (%)", "Wg ilości akcji"])
         
         default_tickers = st.session_state.portfolio_alloc["Ticker"].tolist() if not st.session_state.portfolio_alloc.empty else df_all["Ticker"].tolist()[:5]
         tickers_list = st.multiselect("Wybór walorów", df_all["Ticker"].tolist(), default=default_tickers)
         
+        st.markdown("---")
+        st.caption(f"💡 Wybrano {len(tickers_list)} walorów")
+    
     with col_right:
         if tickers_list:
             alloc_data = []
             df_tickers = df_all[df_all["Ticker"].isin(tickers_list)]
             
-            total_model = 0
-            total_real = 0
-            
-            # ✅ NAGŁÓWEK TABELI (tylko raz)
-            st.markdown("""
-            <div class="pt-header">
-                <div class="pt-col" style="text-align:left;">Ticker</div>
-                <div class="pt-col">Cena</div>
-                <div class="pt-col">Model %</div>
-                <div class="pt-col">Model Qty</div>
-                <div class="pt-col">Real Qty</div>
-                <div class="pt-col">Wartość</div>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            # ✅ JEDNA POZYCJA = JEDEN WIERSZ
             for idx, row in df_tickers.iterrows():
                 ticker_key = row['Ticker']
                 
-                if alloc_method == "Wg wartości (%)":
-                    pct_key = f"pct_{idx}_{ticker_key}"
-                    default_pct = st.session_state.saved_portfolio_values.get(ticker_key, {}).get('pct', 5.0)
-                    pct = st.number_input("%", 0.0, 100.0, default_pct, step=1.0, key=pct_key, label_visibility="collapsed")
-                    model_value = (pct/100) * st.session_state.paper_capital
-                    model_qty = model_value / row["Price"]
-                else:
-                    qty_key = f"qty_{idx}_{ticker_key}"
-                    default_qty = st.session_state.saved_portfolio_values.get(ticker_key, {}).get('model_qty', 10.0)
-                    model_qty = st.number_input("Qty", 0.0, 10000.0, default_qty, step=0.5, key=qty_key, label_visibility="collapsed")
-                    model_value = model_qty * row["Price"]
-                    pct = (model_value / st.session_state.paper_capital) * 100
+                # Kolumny dla każdej pozycji
+                c1, c2, c3, c4 = st.columns([2, 1, 1, 1])
                 
-                real_key = f"real_{idx}_{ticker_key}"
-                default_real = st.session_state.saved_portfolio_values.get(ticker_key, {}).get('real_qty', round(model_qty, 2))
-                real_qty = st.number_input("Real", 0.0, 10000.0, float(default_real), step=0.01, key=real_key, label_visibility="collapsed")
-                real_value = real_qty * row["Price"]
+                with c1:
+                    st.markdown(f"**{ticker_key}**")
+                    st.caption(f"Cena: {row['Price']:,.2f} {curr} | Upside: {row['Upside %']:.1f}%")
                 
-                total_model += model_value
-                total_real += real_value
+                with c2:
+                    if alloc_method == "Wg wartości (%)":
+                        pct_key = f"pct_{idx}_{ticker_key}"
+                        default_pct = st.session_state.saved_portfolio_values.get(ticker_key, {}).get('pct', 5.0)
+                        pct = st.number_input("%", 0.0, 100.0, float(default_pct), step=1.0, key=pct_key, label_visibility="collapsed")
+                        model_value = (pct/100) * st.session_state.paper_capital
+                        model_qty = model_value / row["Price"]
+                        st.number_input("Qty", 0.0, 10000.0, float(model_qty), step=0.01, key=f"model_{ticker_key}", label_visibility="collapsed", disabled=True)
+                    else:
+                        qty_key = f"qty_{idx}_{ticker_key}"
+                        default_qty = st.session_state.saved_portfolio_values.get(ticker_key, {}).get('model_qty', 10.0)
+                        model_qty = st.number_input("Qty", 0.0, 10000.0, float(default_qty), step=0.5, key=qty_key, label_visibility="collapsed")
+                        model_value = model_qty * row["Price"]
+                        pct = (model_value / st.session_state.paper_capital) * 100
+                        st.number_input("%", 0.0, 100.0, float(pct), step=0.1, key=f"pct_{ticker_key}", label_visibility="collapsed", disabled=True)
                 
-                # ✅ JEDEN WIERSZ HTML
-                st.markdown(f"""
-                <div class="pt-row">
-                    <div class="pt-col" style="text-align:left;">{ticker_key}</div>
-                    <div class="pt-col">
-                        <div class="pt-value">{row['Price']:,.2f}</div>
-                        <div class="pt-label">{st.session_state.currency}</div>
-                    </div>
-                    <div class="pt-col">
-                        <div class="pt-value">{pct:.1f}%</div>
-                    </div>
-                    <div class="pt-col">
-                        <div class="pt-value">{model_qty:.2f}</div>
-                        <div class="pt-label">szt</div>
-                    </div>
-                    <div class="pt-col">
-                        <div class="pt-value highlight">{real_qty:.2f}</div>
-                        <div class="pt-label">szt</div>
-                    </div>
-                    <div class="pt-col">
-                        <div class="pt-value">{real_value:,.0f}</div>
-                        <div class="pt-label">{st.session_state.currency}</div>
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
+                with c3:
+                    real_key = f"real_{idx}_{ticker_key}"
+                    default_real = st.session_state.saved_portfolio_values.get(ticker_key, {}).get('real_qty', round(model_qty, 2))
+                    real_qty = st.number_input("Real", 0.0, 10000.0, float(default_real), step=0.01, key=real_key, label_visibility="collapsed")
+                    real_value = real_qty * row["Price"]
+                
+                with c4:
+                    st.metric("", format_currency(real_value, st.session_state.currency))
                 
                 alloc_data.append({
-                    "Ticker": ticker_key, "Price": row["Price"], "%": pct,
-                    "Ilość (ułamkowa)": model_qty, "Wartość pozycji": real_value
+                    "Ticker": ticker_key,
+                    "Price": row["Price"],
+                    "% Model": pct,
+                    "Ilość (ułamkowa)": model_qty,
+                    "Faktyczny portfel": real_qty,
+                    "Wartość pozycji": real_value,
+                    "Upside %": row["Upside %"],
+                    "Signal": row["Signal"] if "Signal" in row else "🟡 HOLD"
                 })
             
             df_alloc = pd.DataFrame(alloc_data)
+            total_real = df_alloc["Wartość pozycji"].sum()
             remaining = st.session_state.paper_capital - total_real
             
+            # === PODSUMOWANIE ALOKACJI ===
             st.divider()
-            st.markdown(f"""
-            <div class="summary-box">
-                <div style="display: flex; gap: 16px; flex-wrap: wrap;">
-                    <div style="flex: 1; min-width: 150px;">
-                        <div style="color: #64748b; font-size: 11px;">📊 Zaalokowano (Model)</div>
-                        <div style="color: #1e3a5f; font-size: 20px; font-weight: 600;">{format_currency(total_model, st.session_state.currency)}</div>
-                    </div>
-                    <div style="flex: 1; min-width: 150px;">
-                        <div style="color: #64748b; font-size: 11px;">📊 Zaalokowano (Real)</div>
-                        <div style="color: #1e3a5f; font-size: 20px; font-weight: 600;">{format_currency(total_real, st.session_state.currency)}</div>
-                    </div>
-                    <div style="flex: 1; min-width: 150px;">
-                        <div style="color: #64748b; font-size: 11px;">💵 Gotówka</div>
-                        <div style="color: #10b981; font-size: 20px; font-weight: 600;">{format_currency(remaining, st.session_state.currency)}</div>
-                    </div>
-                    <div style="flex: 1; min-width: 150px;">
-                        <div style="color: #64748b; font-size: 11px;">⚠️ Nadpłynięcie</div>
-                        <div style="color: {'#ef4444' if remaining < 0 else '#10b981'}; font-size: 20px; font-weight: 600;">{'TAK' if remaining < 0 else 'NIE'}</div>
-                    </div>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
+            st.markdown("**📊 Podsumowanie alokacji**")
             
-            if st.button("💾 Zatwierdź portfel", type="primary"):
-                st.session_state.portfolio_alloc = df_alloc.copy()
-                st.session_state.portfolio_alloc["Data dodania"] = datetime.now().strftime("%Y-%m-%d")
-                
-                for _, row in df_alloc.iterrows():
-                    st.session_state.saved_portfolio_values[row["Ticker"]] = {
-                        "pct": row["%"], "model_qty": row["Ilość (ułamkowa)"],
-                        "real_qty": row["Ilość (ułamkowa)"]
-                    }
-                
-                st.success("✅ Portfel zapisany! Sprawdź w Dashboard.")
-                st.rerun()
+            c_r1, c_r2, c_r3 = st.columns(3)
+            c_r1.metric("📊 Zaalokowano (Model)", format_currency(total_real, st.session_state.currency))
+            c_r2.metric("💵 Pozostało", format_currency(remaining, st.session_state.currency),
+                       delta=f"{(remaining/st.session_state.paper_capital)*100:.1f}%" if remaining >= 0 else "⚠️ Nadpłynięcie")
+            c_r3.metric("📈 Liczba pozycji", f"{len(df_alloc)}")
             
-            if not df_alloc.empty:
-                csv = df_alloc.to_csv(index=False).encode('utf-8')
-                st.download_button("📥 Eksportuj CSV", csv,
-                    f"portfolio_{st.session_state.exchange}_{st.session_state.trade_mode}_{datetime.now().strftime('%Y%m%d')}.csv",
-                    "text/csv")
+            # === TABELA POZYCJI ===
+            st.markdown("**📋 Pozycje w portfelu**")
+            
+            st.dataframe(df_alloc[["Ticker", "Price", "% Model", "Ilość (ułamkowa)", "Faktyczny portfel", "Wartość pozycji", "Upside %", "Signal"]].style.format({
+                "Price": f"{{:,.2f}} {st.session_state.currency}",
+                "% Model": "{:.1f}%",
+                "Ilość (ułamkowa)": "{:.2f}",
+                "Faktyczny portfel": "{:.2f}",
+                "Wartość pozycji": f"{{:,.0f}} {st.session_state.currency}",
+                "Upside %": "{:.1f}%"
+            }), use_container_width=True, hide_index=True)
+            
+            # === PRZYCISKI ===
+            st.divider()
+            c_btn1, c_btn2 = st.columns([1, 3])
+            
+            with c_btn1:
+                if st.button("💾 Zatwierdź portfel", type="primary", use_container_width=True):
+                    st.session_state.portfolio_alloc = df_alloc[["Ticker", "Price", "% Model", "Ilość (ułamkowa)", "Faktyczny portfel", "Wartość pozycji"]].copy()
+                    st.session_state.portfolio_alloc["Data dodania"] = datetime.now().strftime("%Y-%m-%d")
+                    
+                    for _, row in df_alloc.iterrows():
+                        st.session_state.saved_portfolio_values[row["Ticker"]] = {
+                            "pct": row["% Model"],
+                            "model_qty": row["Ilość (ułamkowa)"],
+                            "real_qty": row["Faktyczny portfel"]
+                        }
+                    
+                    st.success("✅ Portfel zapisany! Sprawdź w Dashboard.")
+                    st.rerun()
+            
+            with c_btn2:
+                if not df_alloc.empty:
+                    csv = df_alloc.to_csv(index=False).encode('utf-8')
+                    st.download_button("📥 Eksportuj CSV", csv,
+                        f"portfolio_{st.session_state.exchange}_{st.session_state.trade_mode}_{datetime.now().strftime('%Y%m%d')}.csv",
+                        "text/csv", use_container_width=True)
+        else:
+            st.info("👈 Wybierz walory z listy po lewej stronie")
 
 # Stopka
 st.markdown("---")
