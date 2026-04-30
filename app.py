@@ -89,14 +89,6 @@ st.markdown("""
     background: #f1f5f9; border: 1px solid #e2e8f0;
     border-radius: 8px; padding: 16px; margin-bottom: 20px;
 }
-
-/* Paper Trading Table Styling */
-.pt-table-container {
-    background: #ffffff;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    overflow: hidden;
-}
 </style>
 """, unsafe_allow_html=True)
 
@@ -112,9 +104,6 @@ INDICATOR_DESC = {
     "PEG Ratio": "PE / Wzrost zysków. <1 sugeruje niedowycenienie",
     "Quick Ratio (Q)": "Płynność szybka. >1 = zdolność do spłaty zobowiązań",
     "Debt/Assets (Q)": "Zadłużenie/Aktywa. <0.5 = bezpieczny poziom",
-    "Revenue (TTM)": "Przychody z ostatnich 12 miesięcy",
-    "Free Cash Flow (TTM)": "Gotówka po odliczeniu nakładów (12m)",
-    "Net Income (TTM)": "Zysk netto spółki (12m)",
     "Signal Score": "Wynik 0-1: BUY≥0.6, HOLD 0.3-0.6, SELL≤0.3",
     "Signal": "Sygnał: 🟢BUY 🟡HOLD 🔴SELL"
 }
@@ -287,15 +276,16 @@ with tab1:
             
             st.markdown("<h4 style='color: #1e3a5f; margin-top: 24px;'>📦 Zatwierdzone Pozycje</h4>", unsafe_allow_html=True)
             
+            # ✅ POPRAWIONE NAZWY KOLUMN - zgodne z zapisem
             df_display = df_portfolio.merge(
-                st.session_state.portfolio_alloc[["Ticker", "Ilość (ułamkowa)", "Wartość pozycji", "%"]],
+                st.session_state.portfolio_alloc[["Ticker", "Ilość (ułamkowa)", "Wartość pozycji", "% Model"]],
                 on="Ticker", how="left")
             
-            st.dataframe(df_display[["Ticker", "Price", "Ilość (ułamkowa)", "Wartość pozycji", "%", "Upside %", "Signal"]].style.format({
+            st.dataframe(df_display[["Ticker", "Price", "Ilość (ułamkowa)", "Wartość pozycji", "% Model", "Upside %", "Signal"]].style.format({
                 "Price": f"{{:,.2f}} {st.session_state.currency}",
                 "Ilość (ułamkowa)": "{:.2f}",
                 "Wartość pozycji": f"{{:,.0f}} {st.session_state.currency}",
-                "%": "{:.1f}%", "Upside %": "{:.1f}%"
+                "% Model": "{:.1f}%", "Upside %": "{:.1f}%"
             }), use_container_width=True, hide_index=True)
         else:
             st.info("⚠️ Brak zatwierdzonych pozycji. Dodaj w zakładce Paper Trading.")
@@ -355,7 +345,7 @@ with tab3:
         "Signal Score": "{:.2f}"
     }), use_container_width=True, hide_index=True)
 
-# TAB 4: PAPER TRADING - POPRAWIONA WERSJA
+# TAB 4: PAPER TRADING
 with tab4:
     mode_label = "Day Trade" if st.session_state.trade_mode == "daily" else "Swing/Monthly"
     st.markdown(f"<h3 class='section-header'>💼 Panel Paper Trading — {mode_label} | {st.session_state.exchange}</h3>", unsafe_allow_html=True)
@@ -442,6 +432,7 @@ with tab4:
                 with c4:
                     st.metric("", format_currency(real_value, st.session_state.currency))
                 
+                # ✅ UJEDNOLICONE NAZWY KOLUMN
                 alloc_data.append({
                     "Ticker": ticker_key,
                     "Price": row["Price"],
@@ -485,6 +476,7 @@ with tab4:
             
             with c_btn1:
                 if st.button("💾 Zatwierdź portfel", type="primary", use_container_width=True):
+                    # ✅ ZAPISZ Z UJEDNOLICONYMI NAZWAMI KOLUMN
                     st.session_state.portfolio_alloc = df_alloc[["Ticker", "Price", "% Model", "Ilość (ułamkowa)", "Faktyczny portfel", "Wartość pozycji"]].copy()
                     st.session_state.portfolio_alloc["Data dodania"] = datetime.now().strftime("%Y-%m-%d")
                     
