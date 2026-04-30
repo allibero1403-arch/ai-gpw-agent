@@ -89,21 +89,6 @@ st.markdown("""
     background: #f1f5f9; border: 1px solid #e2e8f0;
     border-radius: 8px; padding: 16px; margin-bottom: 20px;
 }
-
-/* Paper Trading - Edytowalna tabela */
-.pt-table th {
-    background: #f1f5f9 !important;
-    color: #1e3a5f !important;
-    font-weight: 600 !important;
-    text-align: center !important;
-}
-.pt-table td {
-    text-align: center !important;
-}
-.pt-table td:first-child {
-    text-align: left !important;
-    font-weight: 600 !important;
-}
 </style>
 """, unsafe_allow_html=True)
 
@@ -120,7 +105,7 @@ INDICATOR_DESC = {
     "Quick Ratio (Q)": "Płynność szybka. >1 = zdolność do spłaty zobowiązań",
     "Debt/Assets (Q)": "Zadłużenie/Aktywa. <0.5 = bezpieczny poziom",
     "Signal Score": "Wynik 0-1: BUY≥0.6, HOLD 0.3-0.6, SELL≤0.3",
-    "Signal": "Sygnał: 🟢BUY HOLD 🔴SELL"
+    "Signal": "Sygnał: 🟢BUY 🟡HOLD 🔴SELL"
 }
 
 def tooltip_header(col):
@@ -186,7 +171,7 @@ def generate_mock_data(tickers, trade_mode="daily"):
     df["Signal"] = df["Signal Score"].apply(lambda x: "🟢 BUY" if x >= 0.65 else ("🔴 SELL" if x <= 0.35 else "🟡 HOLD"))
     return df
 
-# 💾 STAN APLIKACJI
+# 💾 STAN APLIKACJI - z czyszczeniem starych danych
 if "paper_capital" not in st.session_state: 
     st.session_state.paper_capital = 100000.0
 if "portfolio_alloc" not in st.session_state: 
@@ -235,6 +220,17 @@ with st.sidebar:
     st.session_state.currency = curr
     
     st.divider()
+    
+    # Przycisk resetu sesji
+    if st.button("🔄 Resetuj dane sesji", use_container_width=True):
+        for key in list(st.session_state.keys()):
+            del st.session_state[key]
+        st.session_state.paper_capital = 100000.0
+        st.session_state.currency = "PLN"
+        st.session_state.exchange = "WIG20"
+        st.session_state.trade_mode = "daily"
+        st.rerun()
+    
     mode_hint = "Szybkie momentum, sentyment" if st.session_state.trade_mode == "daily" else "Wartość, dywidendy"
     st.markdown(f"""
     <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; margin-top: 10px;">
@@ -276,30 +272,35 @@ with tab1:
     display_tooltip_legend()
     
     if not st.session_state.portfolio_alloc.empty:
-        approved_tickers = st.session_state.portfolio_alloc["Ticker"].tolist()
-        df_portfolio = df_all[df_all["Ticker"].isin(approved_tickers)]
-        
-        if not df_portfolio.empty:
-            c1, c2, c3, c4 = st.columns(4)
-            c1.metric("📈 Pozycji w portfelu", f"{len(df_portfolio)}")
-            c2.metric("🟢 Śr. Signal Score", f"{df_portfolio['Signal Score'].mean():.2f}")
-            c3.metric("📊 Śr. Upside", f"{df_portfolio['Upside %'].mean():.1f}%")
-            c4.metric("💰 Zainwestowano", format_currency(st.session_state.portfolio_alloc["Wartość"].sum(), st.session_state.currency))
-            
-            st.markdown("<h4 style='color: #1e3a5f; margin-top: 24px;'>📦 Zatwierdzone Pozycje</h4>", unsafe_allow_html=True)
-            
-            df_display = df_portfolio.merge(
-                st.session_state.portfolio_alloc[["Ticker", "Ilość", "Wartość", "%"]],
-                on="Ticker", how="left")
-            
-            st.dataframe(df_display[["Ticker", "Price", "Ilość", "Wartość", "%", "Upside %", "Signal"]].style.format({
-                "Price": f"{{:,.2f}} {st.session_state.currency}",
-                "Ilość": "{:.2f}",
-                "Wartość": f"{{:,.0f}} {st.session_state.currency}",
-                "%": "{:.1f}%", "Upside %": "{:.1f}%"
-            }), use_container_width=True, hide_index=True)
+        # ✅ SPRAWDŹ CZY KOLUMNA "Wartość" ISTNIEJE
+        if "Wartość" not in st.session_state.portfolio_alloc.columns:
+            st.warning("⚠️ Stary format portfela. Zresetuj dane w sidebar lub zatwierdź portfel ponownie.")
+            st.session_state.portfolio_alloc = pd.DataFrame()
         else:
-            st.info("⚠️ Brak zatwierdzonych pozycji. Dodaj w zakładce Paper Trading.")
+            approved_tickers = st.session_state.portfolio_alloc["Ticker"].tolist()
+            df_portfolio = df_all[df_all["Ticker"].isin(approved_tickers)]
+            
+            if not df_portfolio.empty:
+                c1, c2, c3, c4 = st.columns(4)
+                c1.metric("📈 Pozycji w portfelu", f"{len(df_portfolio)}")
+                c2.metric("🟢 Śr. Signal Score", f"{df_portfolio['Signal Score'].mean():.2f}")
+                c3.metric("📊 Śr. Upside", f"{df_portfolio['Upside %'].mean():.1f}%")
+                c4.metric("💰 Zainwestowano", format_currency(st.session_state.portfolio_alloc["Wartość"].sum(), st.session_state.currency))
+                
+                st.markdown("<h4 style='color: #1e3a5f; margin-top: 24px;'>📦 Zatwierdzone Pozycje</h4>", unsafe_allow_html=True)
+                
+                df_display = df_portfolio.merge(
+                    st.session_state.portfolio_alloc[["Ticker", "Ilość", "Wartość", "%"]],
+                    on="Ticker", how="left")
+                
+                st.dataframe(df_display[["Ticker", "Price", "Ilość", "Wartość", "%", "Upside %", "Signal"]].style.format({
+                    "Price": f"{{:,.2f}} {st.session_state.currency}",
+                    "Ilość": "{:.2f}",
+                    "Wartość": f"{{:,.0f}} {st.session_state.currency}",
+                    "%": "{:.1f}%", "Upside %": "{:.1f}%"
+                }), use_container_width=True, hide_index=True)
+            else:
+                st.info("⚠️ Brak zatwierdzonych pozycji. Dodaj w zakładce Paper Trading.")
     else:
         st.info("⚠️ Brak zatwierdzonych pozycji. Dodaj w zakładce Paper Trading.")
 
@@ -355,7 +356,7 @@ with tab3:
         "Signal Score": "{:.2f}"
     }), use_container_width=True, hide_index=True)
 
-# TAB 4: PAPER TRADING - UPROSZCZONA WERSJA
+# TAB 4: PAPER TRADING
 with tab4:
     mode_label = "Day Trade" if st.session_state.trade_mode == "daily" else "Swing/Monthly"
     st.markdown(f"<h3 class='section-header'>💼 Panel Paper Trading — {mode_label} | {st.session_state.exchange}</h3>", unsafe_allow_html=True)
@@ -388,12 +389,14 @@ with tab4:
             st.session_state.portfolio_edit = []
             for idx, row in df_tickers.iterrows():
                 saved = st.session_state.saved_portfolio_values.get(row["Ticker"], {})
+                default_pct = saved.get("pct", 5.0)
+                default_qty = saved.get("model_qty", round((5.0/100 * st.session_state.paper_capital) / row["Price"], 2))
                 st.session_state.portfolio_edit.append({
                     "Ticker": row["Ticker"],
                     "Cena": row["Price"],
-                    "%": saved.get("pct", 5.0),
-                    "Ilość": saved.get("model_qty", round((5.0/100 * st.session_state.paper_capital) / row["Price"], 2)),
-                    "Wartość": 0.0,
+                    "%": default_pct,
+                    "Ilość": default_qty,
+                    "Wartość": round(default_qty * row["Price"], 0),
                     "Upside %": row["Upside %"],
                     "Signal": row["Signal"]
                 })
@@ -418,8 +421,8 @@ with tab4:
         )
         
         # === OBLICZANIE WARTOŚCI ===
-        edited_df["Wartość"] = edited_df["Ilość"] * edited_df["Cena"]
-        edited_df["%"] = (edited_df["Wartość"] / st.session_state.paper_capital) * 100
+        edited_df["Wartość"] = (edited_df["Ilość"] * edited_df["Cena"]).round(0)
+        edited_df["%"] = ((edited_df["Wartość"] / st.session_state.paper_capital) * 100).round(1)
         
         # === PODSUMOWANIE ===
         st.divider()
@@ -427,7 +430,7 @@ with tab4:
         
         total_invested = edited_df["Wartość"].sum()
         remaining = st.session_state.paper_capital - total_invested
-        utilization = (total_invested / st.session_state.paper_capital) * 100
+        utilization = (total_invested / st.session_state.paper_capital) * 100 if st.session_state.paper_capital > 0 else 0
         
         c1, c2, c3, c4 = st.columns(4)
         c1.metric("📊 Zainwestowano", format_currency(total_invested, st.session_state.currency))
@@ -442,9 +445,9 @@ with tab4:
         
         with c_btn1:
             if st.button("💾 Zatwierdź portfel", type="primary", use_container_width=True):
+                # ✅ ZAPISZ Z UJEDNOLICONYMI NAZWAMI KOLUMN
                 st.session_state.portfolio_alloc = edited_df[["Ticker", "Cena", "%", "Ilość", "Wartość", "Upside %", "Signal"]].copy()
                 st.session_state.portfolio_alloc["Data dodania"] = datetime.now().strftime("%Y-%m-%d")
-                st.session_state.portfolio_alloc.rename(columns={"Cena": "Price"}, inplace=True)
                 
                 for _, row in edited_df.iterrows():
                     st.session_state.saved_portfolio_values[row["Ticker"]] = {
