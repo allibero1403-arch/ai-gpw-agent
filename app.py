@@ -6,7 +6,7 @@ from datetime import datetime
 # 🎨 STYLIZACJA CSS
 st.markdown("""
 <style>
-/* Tooltipy */
+/* Tooltipy - działają po najechaniu na nagłówki */
 .tooltip-wrap { position: relative; display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
 .tooltip-icon { width: 16px; height: 16px; background: #3b82f6; color: white; border-radius: 50%; font-size: 10px; display: flex; align-items: center; justify-content: center; }
 .tooltip-text {
@@ -64,19 +64,6 @@ st.markdown("""
 .exchange-wig80 { background: #fef3c7; color: #92400e; }
 .exchange-ibkr { background: #e0e7ff; color: #4338ca; }
 
-/* Tooltip legend */
-.tooltip-legend {
-    background: #eff6ff; border: 1px solid #bfdbfe;
-    border-radius: 8px; padding: 12px 16px; margin: 16px 0;
-}
-.tooltip-legend-title { color: #1e40af; font-weight: 600; font-size: 13px; margin-bottom: 10px; }
-.tooltip-item {
-    display: inline-block; background: #ffffff; border: 1px solid #dbeafe;
-    border-radius: 6px; padding: 6px 10px; margin: 4px;
-    font-size: 11px; color: #1e3a5f; cursor: help;
-}
-.tooltip-item:hover { background: #dbeafe; border-color: #3b82f6; }
-
 /* Section headers */
 .section-header {
     color: #1e3a5f; font-size: 18px; font-weight: 600;
@@ -89,10 +76,18 @@ st.markdown("""
     background: #f1f5f9; border: 1px solid #e2e8f0;
     border-radius: 8px; padding: 16px; margin-bottom: 20px;
 }
+
+/* Paper Trading - edytowalna tabela */
+[data-testid="stDataframe"] { border-radius: 8px; overflow: hidden; }
+
+/* Inputy w tabeli */
+.stDataFrame input[type="number"] {
+    text-align: center !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
-# 📖 LEGENDA WSKAŹNIKÓW
+# 📖 LEGENDA WSKAŹNIKÓW (tylko do tooltipów)
 INDICATOR_DESC = {
     "Ticker": "Symbol giełdowy spółki",
     "Price": "Aktualna cena rynkowa akcji",
@@ -105,7 +100,7 @@ INDICATOR_DESC = {
     "Quick Ratio (Q)": "Płynność szybka. >1 = zdolność do spłaty zobowiązań",
     "Debt/Assets (Q)": "Zadłużenie/Aktywa. <0.5 = bezpieczny poziom",
     "Signal Score": "Wynik 0-1: BUY≥0.6, HOLD 0.3-0.6, SELL≤0.3",
-    "Signal": "Sygnał: 🟢BUY 🟡HOLD 🔴SELL"
+    "Signal": "Sygnał: 🟢BUY HOLD 🔴SELL"
 }
 
 def tooltip_header(col):
@@ -171,7 +166,7 @@ def generate_mock_data(tickers, trade_mode="daily"):
     df["Signal"] = df["Signal Score"].apply(lambda x: "🟢 BUY" if x >= 0.65 else ("🔴 SELL" if x <= 0.35 else "🟡 HOLD"))
     return df
 
-# 💾 STAN APLIKACJI - z czyszczeniem starych danych
+# 💾 STAN APLIKACJI
 if "paper_capital" not in st.session_state: 
     st.session_state.paper_capital = 100000.0
 if "portfolio_alloc" not in st.session_state: 
@@ -224,11 +219,8 @@ with st.sidebar:
     # Przycisk resetu sesji
     if st.button("🔄 Resetuj dane sesji", use_container_width=True):
         for key in list(st.session_state.keys()):
-            del st.session_state[key]
-        st.session_state.paper_capital = 100000.0
-        st.session_state.currency = "PLN"
-        st.session_state.exchange = "WIG20"
-        st.session_state.trade_mode = "daily"
+            if key not in ["paper_capital", "currency", "exchange", "trade_mode"]:
+                del st.session_state[key]
         st.rerun()
     
     mode_hint = "Szybkie momentum, sentyment" if st.session_state.trade_mode == "daily" else "Wartość, dywidendy"
@@ -246,22 +238,6 @@ df_all = generate_mock_data(tickers, st.session_state.trade_mode)
 cols_display = ["Ticker", "Price", "Target Price", "Upside %", "Market Cap", "Dividend Yield", 
                 "PE Ratio", "PEG Ratio", "Quick Ratio (Q)", "Debt/Assets (Q)", "Signal", "Signal Score"]
 
-# ✅ LEGENDA TOOLTIPÓW
-def display_tooltip_legend():
-    st.markdown("""
-    <div class="tooltip-legend">
-        <div class="tooltip-legend-title">📖 Legenda wskaźników (najedź myszką)</div>
-        <div>
-            <span class="tooltip-item" title="Aktualna cena">Price</span>
-            <span class="tooltip-item" title="Potencjał wzrostu">Upside %</span>
-            <span class="tooltip-item" title="Cena/Zysk">PE Ratio</span>
-            <span class="tooltip-item" title="Dywidenda">Div Yield</span>
-            <span class="tooltip-item" title="Płynność">Quick Ratio</span>
-            <span class="tooltip-item" title="Wynik AI">Signal Score</span>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
 # 📊 ZAKŁADKI
 tab1, tab2, tab3, tab4 = st.tabs(["📊 Dashboard", "🔍 Skaner", "📈 Sygnały", "💼 Paper Trading"])
 
@@ -269,10 +245,8 @@ tab1, tab2, tab3, tab4 = st.tabs(["📊 Dashboard", "🔍 Skaner", "📈 Sygnał
 with tab1:
     mode_label = "Day Trade" if st.session_state.trade_mode == "daily" else "Swing/Monthly"
     st.markdown(f"<h3 class='section-header'>📊 Dashboard — {mode_label} | {st.session_state.exchange}</h3>", unsafe_allow_html=True)
-    display_tooltip_legend()
     
     if not st.session_state.portfolio_alloc.empty:
-        # ✅ SPRAWDŹ CZY KOLUMNA "Wartość" ISTNIEJE
         if "Wartość" not in st.session_state.portfolio_alloc.columns:
             st.warning("⚠️ Stary format portfela. Zresetuj dane w sidebar lub zatwierdź portfel ponownie.")
             st.session_state.portfolio_alloc = pd.DataFrame()
@@ -307,7 +281,6 @@ with tab1:
 # TAB 2: SKANER
 with tab2:
     st.markdown("<h3 class='section-header'>🔍 Zaawansowany Skaner</h3>", unsafe_allow_html=True)
-    display_tooltip_legend()
     
     colA, colB, colC = st.columns(3)
     with colA:
@@ -336,15 +309,15 @@ with tab2:
             "Signal Score": "{:.2f}"
         }), use_container_width=True, hide_index=True)
 
-# TAB 3: SYGNAŁY
+# TAB 3: SYGNAŁY - BEZ LEGENDY, TYLKO TOOLTIPY W NAGŁÓWKACH
 with tab3:
     mode_label = "Day Trade" if st.session_state.trade_mode == "daily" else "Swing/Monthly"
     st.markdown(f"<h3 class='section-header'>🎯 Lista Sygnałów — {mode_label}</h3>", unsafe_allow_html=True)
-    display_tooltip_legend()
     
     sig_filter = st.radio("Filtr sygnałów", ["Wszystkie", "🟢 BUY", "🟡 HOLD", "🔴 SELL"], horizontal=True)
     df_sig = df_all[df_all["Signal"] == sig_filter] if sig_filter != "Wszystkie" else df_all
     
+    # ✅ TOOLTIPY TYLKO W NAGŁÓWKACH TABELI (bez osobnego wiersza z legendą)
     headers_html = " | ".join([tooltip_header(c) for c in cols_display])
     st.markdown(headers_html, unsafe_allow_html=True)
     
@@ -356,96 +329,128 @@ with tab3:
         "Signal Score": "{:.2f}"
     }), use_container_width=True, hide_index=True)
 
-# TAB 4: PAPER TRADING
+# TAB 4: PAPER TRADING - PODSUMOWANIE NA SAMEJ GÓRZE + EDYCJA DZIAŁA
 with tab4:
     mode_label = "Day Trade" if st.session_state.trade_mode == "daily" else "Swing/Monthly"
     st.markdown(f"<h3 class='section-header'>💼 Panel Paper Trading — {mode_label} | {st.session_state.exchange}</h3>", unsafe_allow_html=True)
     
-    # === KAPITAŁ - EDYTOWALNY ===
+    # === 1. PODSUMOWANIE NA SAMEJ GÓRZE (przed wszystkim innym) ===
     st.markdown("<div class='summary-box'>", unsafe_allow_html=True)
-    col_cap1, col_cap2 = st.columns([1, 3])
-    with col_cap1:
-        st.session_state.paper_capital = st.number_input(
-            "💰 Kapitał całkowity", 
-            min_value=1000.0, 
-            value=float(st.session_state.paper_capital), 
-            step=1000.0,
-            label_visibility="collapsed"
-        )
-    with col_cap2:
-        st.markdown(f"<p style='color: #64748b; font-size: 13px; margin-top: 10px;'>💡 Edytuj kapitał bezpośrednio w polu powyżej</p>", unsafe_allow_html=True)
+    st.markdown("**📊 Podsumowanie portfela**")
+    c_sum = st.columns(4)
+    
+    total_invested = st.session_state.portfolio_alloc["Wartość"].sum() if not st.session_state.portfolio_alloc.empty and "Wartość" in st.session_state.portfolio_alloc.columns else 0
+    remaining = st.session_state.paper_capital - total_invested
+    utilization = (total_invested / st.session_state.paper_capital) * 100 if st.session_state.paper_capital > 0 else 0
+    num_positions = len(st.session_state.portfolio_alloc) if not st.session_state.portfolio_alloc.empty else 0
+    
+    with c_sum[0]:
+        st.metric("💰 Kapitał", format_currency(st.session_state.paper_capital, st.session_state.currency))
+    with c_sum[1]:
+        st.metric("📊 Zainwestowano", format_currency(total_invested, st.session_state.currency))
+    with c_sum[2]:
+        st.metric("💵 Gotówka", format_currency(remaining, st.session_state.currency),
+                 delta=f"{(remaining/st.session_state.paper_capital)*100:.1f}%" if remaining >= 0 else "⚠️ Nadpłynięcie")
+    with c_sum[3]:
+        st.metric("📈 Wykorzystanie", f"{utilization:.1f}%")
+    
     st.markdown("</div>", unsafe_allow_html=True)
     
-    # === WYBÓR WALORÓW ===
+    # === 2. KAPITAŁ DO EDYCJI ===
+    col_cap1, col_cap2 = st.columns([1, 3])
+    with col_cap1:
+        new_capital = st.number_input(
+            "💰 Zmień kapitał", 
+            min_value=1000.0, 
+            value=float(st.session_state.paper_capital), 
+            step=1000.0
+        )
+        if new_capital != st.session_state.paper_capital:
+            st.session_state.paper_capital = new_capital
+            st.rerun()
+    with col_cap2:
+        st.markdown("<p style='color: #64748b; font-size: 13px; margin-top: 24px;'>💡 Zmień kapitał i zatwierdź Enterem</p>", unsafe_allow_html=True)
+    
+    st.divider()
+    
+    # === 3. WYBÓR WALORÓW ===
     default_tickers = st.session_state.portfolio_alloc["Ticker"].tolist() if not st.session_state.portfolio_alloc.empty else df_all["Ticker"].tolist()[:5]
-    tickers_list = st.multiselect("📋 Wybierz walory do portfela", df_all["Ticker"].tolist(), default=default_tickers)
+    tickers_list = st.multiselect("📋 Wybierz walory", df_all["Ticker"].tolist(), default=default_tickers)
     
     if tickers_list:
-        # === PRZYGOTOWANIE DANYCH ===
+        # === 4. PRZYGOTOWANIE DANYCH DO EDYCJI ===
         df_tickers = df_all[df_all["Ticker"].isin(tickers_list)].copy()
         
-        # Inicjalizacja danych do edycji
-        if "portfolio_edit" not in st.session_state or len(st.session_state.portfolio_edit) != len(tickers_list):
-            st.session_state.portfolio_edit = []
+        # Klucz do cache - zmienia się przy zmianie listy tickers
+        cache_key = f"portfolio_edit_{st.session_state.exchange}_{len(tickers_list)}"
+        
+        if cache_key not in st.session_state or st.session_state.get(f"{cache_key}_tickers") != tickers_list:
+            portfolio_edit_data = []
             for idx, row in df_tickers.iterrows():
                 saved = st.session_state.saved_portfolio_values.get(row["Ticker"], {})
-                default_pct = saved.get("pct", 5.0)
                 default_qty = saved.get("model_qty", round((5.0/100 * st.session_state.paper_capital) / row["Price"], 2))
-                st.session_state.portfolio_edit.append({
+                default_value = round(default_qty * row["Price"], 0)
+                default_pct = round((default_value / st.session_state.paper_capital) * 100, 1)
+                
+                portfolio_edit_data.append({
                     "Ticker": row["Ticker"],
                     "Cena": row["Price"],
                     "%": default_pct,
                     "Ilość": default_qty,
-                    "Wartość": round(default_qty * row["Price"], 0),
+                    "Wartość": default_value,
                     "Upside %": row["Upside %"],
                     "Signal": row["Signal"]
                 })
+            st.session_state[cache_key] = portfolio_edit_data
+            st.session_state[f"{cache_key}_tickers"] = tickers_list
         
-        # === EDYTOWALNA TABELA ===
-        st.markdown("**📊 Konfiguracja pozycji**")
+        # === 5. EDYTOWALNA TABELA - JEDEN WIERSZ = JEDNA POZYCJA ===
+        st.markdown("**📊 Edytuj pozycje (kliknij w % lub Ilość aby zmienić)**")
         
         edited_df = st.data_editor(
-            pd.DataFrame(st.session_state.portfolio_edit),
+            pd.DataFrame(st.session_state[cache_key]),
             column_config={
-                "Ticker": st.column_config.TextColumn("Ticker", disabled=True),
-                "Cena": st.column_config.NumberColumn("Cena", format="%.2f", disabled=True),
-                "%": st.column_config.NumberColumn("%", min_value=0.0, max_value=100.0, step=0.5),
-                "Ilość": st.column_config.NumberColumn("Ilość", min_value=0.0, step=0.01),
-                "Wartość": st.column_config.NumberColumn("Wartość", format="%.0f", disabled=True),
-                "Upside %": st.column_config.NumberColumn("Upside %", format="%.1f%%", disabled=True),
-                "Signal": st.column_config.TextColumn("Signal", disabled=True)
+                "Ticker": st.column_config.TextColumn("Ticker", disabled=True, width="medium"),
+                "Cena": st.column_config.NumberColumn("Cena", format="%.2f", disabled=True, width="small"),
+                "%": st.column_config.NumberColumn("%", min_value=0.0, max_value=100.0, step=0.5, width="small"),
+                "Ilość": st.column_config.NumberColumn("Ilość", min_value=0.0, step=0.01, width="small"),
+                "Wartość": st.column_config.NumberColumn("Wartość", format="%.0f", disabled=True, width="small"),
+                "Upside %": st.column_config.NumberColumn("Upside", format="%.1f%%", disabled=True, width="small"),
+                "Signal": st.column_config.TextColumn("Signal", disabled=True, width="small")
             },
             hide_index=True,
             use_container_width=True,
-            key="portfolio_editor"
+            key=f"editor_{cache_key}",
+            disabled=False  # ✅ POZWALAJ NA EDYCJĘ
         )
         
-        # === OBLICZANIE WARTOŚCI ===
+        # === 6. PRZELICZ WARTOŚCI PO EDYCJI ===
         edited_df["Wartość"] = (edited_df["Ilość"] * edited_df["Cena"]).round(0)
         edited_df["%"] = ((edited_df["Wartość"] / st.session_state.paper_capital) * 100).round(1)
         
-        # === PODSUMOWANIE ===
+        # Zapisz edycje do cache
+        st.session_state[cache_key] = edited_df.to_dict('records')
+        
+        # === 7. PODSUMOWANIE ALOKACJI ===
         st.divider()
-        st.markdown("**📈 Podsumowanie**")
+        st.markdown("**📈 Podsumowanie alokacji**")
         
-        total_invested = edited_df["Wartość"].sum()
-        remaining = st.session_state.paper_capital - total_invested
-        utilization = (total_invested / st.session_state.paper_capital) * 100 if st.session_state.paper_capital > 0 else 0
+        total_alloc = edited_df["Wartość"].sum()
+        remaining_alloc = st.session_state.paper_capital - total_alloc
+        util_alloc = (total_alloc / st.session_state.paper_capital) * 100 if st.session_state.paper_capital > 0 else 0
         
-        c1, c2, c3, c4 = st.columns(4)
-        c1.metric("📊 Zainwestowano", format_currency(total_invested, st.session_state.currency))
-        c2.metric("💵 Pozostało", format_currency(remaining, st.session_state.currency), 
-                 delta=f"{(remaining/st.session_state.paper_capital)*100:.1f}%" if remaining >= 0 else "⚠️ Nadpłynięcie")
-        c3.metric("📈 Wykorzystanie", f"{utilization:.1f}%")
-        c4.metric("📋 Pozycji", f"{len(edited_df)}")
+        c_alloc1, c_alloc2, c_alloc3 = st.columns(3)
+        c_alloc1.metric("📊 Zaalokowano", format_currency(total_alloc, st.session_state.currency))
+        c_alloc2.metric("💵 Pozostało", format_currency(remaining_alloc, st.session_state.currency),
+                       delta=f"{(remaining_alloc/st.session_state.paper_capital)*100:.1f}%" if remaining_alloc >= 0 else "⚠️ Nadpłynięcie")
+        c_alloc3.metric("📋 Pozycji", f"{len(edited_df)}")
         
-        # === PRZYCISKI ===
+        # === 8. PRZYCISKI ===
         st.divider()
         c_btn1, c_btn2 = st.columns([1, 3])
         
         with c_btn1:
             if st.button("💾 Zatwierdź portfel", type="primary", use_container_width=True):
-                # ✅ ZAPISZ Z UJEDNOLICONYMI NAZWAMI KOLUMN
                 st.session_state.portfolio_alloc = edited_df[["Ticker", "Cena", "%", "Ilość", "Wartość", "Upside %", "Signal"]].copy()
                 st.session_state.portfolio_alloc["Data dodania"] = datetime.now().strftime("%Y-%m-%d")
                 
