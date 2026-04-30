@@ -78,14 +78,16 @@ st.markdown("""
 }
 
 /* Paper Trading - wyszarzenie po zatwierdzeniu */
-.pt-approved {
-    opacity: 0.5;
-    pointer-events: none;
-}
 .pt-hint {
     color: #64748b;
     font-size: 12px;
     margin-top: 8px;
+}
+.pt-approved-msg {
+    color: #10b981;
+    font-size: 13px;
+    font-weight: 500;
+    margin-top: 10px;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -182,8 +184,6 @@ if "exchange" not in st.session_state:
     st.session_state.exchange = "WIG20"
 if "saved_portfolio_values" not in st.session_state:
     st.session_state.saved_portfolio_values = {}
-if "pt_approved" not in st.session_state:
-    st.session_state.pt_approved = False
 
 # 🖥️ UI
 st.set_page_config(page_title="🤖 AI Giełda Agent", layout="wide", page_icon="📈")
@@ -332,7 +332,7 @@ with tab3:
         "Signal Score": "{:.2f}"
     }), use_container_width=True, hide_index=True)
 
-# TAB 4: PAPER TRADING - DELIKATNE ZMIANY WIZUALNE
+# TAB 4: PAPER TRADING - POPRAWIONE
 with tab4:
     mode_label = "Day Trade" if st.session_state.trade_mode == "daily" else "Swing/Monthly"
     st.markdown(f"<h3 class='section-header'>💼 Paper Trading — {mode_label} | {st.session_state.exchange}</h3>", unsafe_allow_html=True)
@@ -370,20 +370,13 @@ with tab4:
             st.session_state.paper_capital = new_capital
             if "pt_df" in st.session_state:
                 del st.session_state.pt_df
-            st.session_state.pt_approved = False
             st.rerun()
-    with col_cap2:
-        # ✅ WSZARZENIE PO ZATWIERDZENIU
-        if st.session_state.pt_approved:
-            st.markdown('<p class="pt-hint" style="opacity: 0.5;">✅ Portfel zatwierdzony</p>', unsafe_allow_html=True)
-        else:
-            st.markdown('<p class="pt-hint">📝 Edytuj pozycje poniżej</p>', unsafe_allow_html=True)
     
     st.divider()
     
-    # === 3. WYBÓR WALORÓW ===
+    # === 3. WYBÓR WALORÓW - ZAWSZE AKTYWNY ===
     default_tickers = st.session_state.portfolio_alloc["Ticker"].tolist() if not st.session_state.portfolio_alloc.empty else df_all["Ticker"].tolist()[:5]
-    tickers_list = st.multiselect("📋 Wybierz walory", df_all["Ticker"].tolist(), default=default_tickers, key="tickers_pt", disabled=st.session_state.pt_approved)
+    tickers_list = st.multiselect("📋 Wybierz walory", df_all["Ticker"].tolist(), default=default_tickers, key="tickers_pt")
     
     if tickers_list:
         # === 4. INICJALIZACJA TABELI ===
@@ -430,7 +423,7 @@ with tab4:
             hide_index=True,
             use_container_width=True,
             key="editor_pt",
-            disabled=st.session_state.pt_approved  # ✅ WYSZARZENIE PO ZATWIERDZENIU
+            disabled=False  # ✅ ZAWSZE MOŻNA EDYTOWAĆ
         )
         
         # === 6. AUTOMATYCZNE PRZELICZANIE ===
@@ -474,12 +467,12 @@ with tab4:
                        delta=f"{(remaining_alloc/st.session_state.paper_capital)*100:.1f}%" if remaining_alloc >= 0 else "⚠️")
         c_alloc3.metric("📋 Pozycji", f"{len(edited_df)}")
         
-        # === 8. PRZYCISKI ===
+        # === 8. PRZYCISKI + KOMUNIKAT ===
         st.divider()
         c_btn1, c_btn2 = st.columns([1, 3])
         
         with c_btn1:
-            if st.button("💾 Zatwierdź portfel", type="primary", use_container_width=True, key="approve_pt", disabled=st.session_state.pt_approved):
+            if st.button("💾 Zatwierdź portfel", type="primary", use_container_width=True, key="approve_pt"):
                 st.session_state.portfolio_alloc = edited_df[["Ticker", "Cena", "%", "Ilość", "Wartość", "Upside %", "Signal"]].copy()
                 st.session_state.portfolio_alloc["Data"] = datetime.now().strftime("%Y-%m-%d")
                 
@@ -490,16 +483,20 @@ with tab4:
                         "value": float(row["Wartość"])
                     }
                 
-                st.session_state.pt_approved = True  # ✅ OZNACZ JAKO ZATWIERDZONE
+                st.session_state.pt_approved = True
                 st.success("✅ Portfel zapisany! Sprawdź w Dashboard.")
                 st.rerun()
+            
+            # ✅ KOMUNIKAT POD PRZYCISKIEM
+            if st.session_state.get("pt_approved", False):
+                st.markdown('<p class="pt-approved-msg">✅ Portfel zatwierdzony</p>', unsafe_allow_html=True)
         
         with c_btn2:
             if not edited_df.empty:
                 csv = edited_df.to_csv(index=False).encode('utf-8')
                 st.download_button("📥 Eksportuj CSV", csv,
                     f"portfolio_{st.session_state.exchange}_{datetime.now().strftime('%Y%m%d')}.csv",
-                    "text/csv", use_container_width=True, disabled=st.session_state.pt_approved)
+                    "text/csv", use_container_width=True)
     else:
         st.info("👈 Wybierz walory z listy powyżej")
 
